@@ -193,8 +193,10 @@ export async function updateCategory(id: number, data: any) {
 }
 
 export async function deleteCategory(id: number) {
-    // Note: This might fail if items are linked to this category (Foreign Key)
-    // We should decide if we want to delete items too or just prevent deletion.
+    // Supprimer d'abord tous les plats liés à cette catégorie
+    await db.execute({ sql: 'DELETE FROM menu_items WHERE category_id = ?', args: [id] });
+    
+    // Ensuite, supprimer la catégorie
     return await db.execute({ sql: 'DELETE FROM categories WHERE id = ?', args: [id] });
 }
 

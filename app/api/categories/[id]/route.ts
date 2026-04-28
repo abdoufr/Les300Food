@@ -30,6 +30,7 @@ export async function DELETE(
         await deleteCategory(parseInt(params.id));
         return NextResponse.json({ success: true, message: 'Catégorie supprimée' });
     } catch (error) {
-        return NextResponse.json({ error: 'Impossible de supprimer une catégorie contenant des plats' }, { status: 400 });
+        console.error('Delete category error:', error);
+        return NextResponse.json({ error: 'Erreur lors de la suppression de la catégorie' }, { status: 500 });
     }
 }

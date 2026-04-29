@@ -66,10 +66,15 @@ export function ContactInfo() {
                 </a>
             )}
             {address && (
-                <div className="flex items-center gap-2">
+                <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 hover:text-primary transition-colors"
+                >
                     <FaMapMarkerAlt className="text-primary" />
                     {address}
-                </div>
+                </a>
             )}
         </div>
     );

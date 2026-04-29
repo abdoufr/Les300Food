@@ -37,7 +37,7 @@ export default async function HomePage() {
                         {popularItems.map((item: any, index: number) => (
                             <div key={item.id} className="card-menu group animate-fadeIn"
                                 style={{ animationDelay: `${index * 100}ms` }}>
-                                <div className="relative h-40 bg-gradient-to-br from-orange-100 to-yellow-50 
+                                <div className="relative h-40 bg-gradient-to-br from-red-50 to-yellow-50 
                                 flex items-center justify-center">
                                     <span className="text-6xl group-hover:scale-125 transition-transform duration-500">
                                         {item.category_icon}

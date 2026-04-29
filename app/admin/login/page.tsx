@@ -108,9 +108,7 @@ export default function AdminLoginPage() {
 
                 {/* Info */}
                 <div className="mt-6 text-center">
-                    <p className="text-gray-500 text-sm">
-                        🔐 Par défaut: admin / admin123
-                    </p>
+
                     <a href="/" className="text-primary hover:underline text-sm mt-2 block">
                         ← Retour au site
                     </a>

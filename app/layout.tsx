@@ -4,7 +4,7 @@ import './globals.css';
 import { Toaster } from 'react-hot-toast';
 
 export const metadata: Metadata = {
-    title: 'BurgerZone - Le Meilleur FastFood',
+    title: '300FOOD - Le Meilleur FastFood',
     description: 'Découvrez nos délicieux burgers, pizzas, tacos et plus encore! Commandez en ligne maintenant.',
     keywords: 'fastfood, burger, pizza, tacos, restaurant, commande en ligne',
 };

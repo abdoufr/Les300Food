@@ -3,13 +3,15 @@ import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
 import Footer from '@/components/Footer';
 import Link from 'next/link';
-import { getPopularItems, getCategories } from '@/lib/db';
+import { getPopularItems, getCategories, getSettings } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
     const popularItems = await getPopularItems() as any[];
     const categories = await getCategories() as any[];
+    const settings = await getSettings();
+    const whatsapp = settings.whatsapp || process.env.NEXT_PUBLIC_WHATSAPP || '';
 
     return (
         <main>
@@ -48,7 +50,7 @@ export default async function HomePage() {
                                     <div className="flex justify-between items-center mt-3">
                                         <span className="text-primary font-bold text-lg">{item.price} DA</span>
                                         <a
-                                            href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP}?text=${encodeURIComponent(`Je voudrais commander: ${item.name} (${item.price} DA)`)}`}
+                                            href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(`Je voudrais commander: ${item.name} (${item.price} DA)`)}`}
                                             target="_blank"
                                             className="bg-green-500 text-white px-3 py-1.5 rounded-full text-xs font-medium 
                                  hover:bg-green-600 transition-colors"

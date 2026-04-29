@@ -5,8 +5,16 @@ import bcrypt from 'bcryptjs';
 const dbUrl = process.env.TURSO_DATABASE_URL;
 const dbToken = process.env.TURSO_AUTH_TOKEN;
 
+const isTurso = dbUrl && dbUrl.trim() !== "" && !dbUrl.startsWith("file:");
+
+if (isTurso) {
+    console.log("Using Turso Database:", dbUrl);
+} else {
+    console.log("Using Local SQLite Database (file:database.sqlite)");
+}
+
 const db = createClient({
-    url: (dbUrl && dbUrl.trim() !== "") ? dbUrl : "file:database.sqlite",
+    url: isTurso ? dbUrl : "file:database.sqlite",
     authToken: dbToken || undefined,
 });
 

@@ -7,15 +7,17 @@ import { FaHeart } from 'react-icons/fa';
 
 export default function Footer() {
     const [siteName, setSiteName] = useState(process.env.NEXT_PUBLIC_SITE_NAME || '300FOOD');
+    const [phone, setPhone] = useState(process.env.NEXT_PUBLIC_PHONE || '');
 
     useEffect(() => {
         fetch('/api/public-settings')
             .then(res => res.json())
-            .then(data => { if (data.site_name) setSiteName(data.site_name); })
-            .catch(() => {});
+            .then(data => {
+                if (data.site_name) setSiteName(data.site_name);
+                if (data.phone) setPhone(data.phone);
+            })
+            .catch(() => { });
     }, []);
-
-    const whatsapp = process.env.NEXT_PUBLIC_WHATSAPP;
 
     return (
         <footer id="contact" className="bg-dark text-white">
@@ -35,7 +37,7 @@ export default function Footer() {
                             📋 Voir le Menu
                         </Link>
                         <a
-                            href={`tel:${process.env.NEXT_PUBLIC_WHATSAPP}`}
+                            href={`tel:${phone}`}
                             className="bg-green-500 text-white px-8 py-4 rounded-full 
                          font-bold text-lg hover:bg-green-600 transition-all 
                          duration-300 hover:shadow-xl"

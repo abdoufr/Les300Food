@@ -6,12 +6,16 @@ import { FaArrowRight, FaStar } from 'react-icons/fa';
 
 export default function Hero() {
     const [siteName, setSiteName] = useState(process.env.NEXT_PUBLIC_SITE_NAME || '300FOOD');
+    const [phone, setPhone] = useState(process.env.NEXT_PUBLIC_PHONE || '');
 
     useEffect(() => {
         fetch('/api/public-settings')
             .then(res => res.json())
-            .then(data => { if (data.site_name) setSiteName(data.site_name); })
-            .catch(() => {});
+            .then(data => {
+                if (data.site_name) setSiteName(data.site_name);
+                if (data.phone) setPhone(data.phone);
+            })
+            .catch(() => { });
     }, []);
 
     return (
@@ -56,7 +60,7 @@ export default function Hero() {
                                 <FaArrowRight />
                             </Link>
                             <a
-                                href={`tel:${process.env.NEXT_PUBLIC_WHATSAPP}`}
+                                href={`tel:${phone}`}
                                 className="btn-secondary text-lg flex items-center justify-center gap-2 px-8 py-4"
                             >
                                 📞 Appelez-nous pour commander

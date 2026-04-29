@@ -23,6 +23,7 @@ interface MenuCardProps {
 
 export default function MenuCard({ item, index }: MenuCardProps) {
     const [phone, setPhone] = useState('0542017560');
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     useEffect(() => {
         fetch('/api/public-settings')
@@ -37,6 +38,27 @@ export default function MenuCard({ item, index }: MenuCardProps) {
         window.open(`tel:${phone.replace(/[^\d+]/g, '')}`, '_self');
     };
 
+    const getImages = () => {
+        try {
+            const parsed = JSON.parse(item.image || '[]');
+            return Array.isArray(parsed) ? parsed : (item.image ? [item.image] : []);
+        } catch {
+            return item.image ? [item.image] : [];
+        }
+    };
+
+    const images = getImages();
+
+    const nextImage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    };
+
+    const prevImage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    };
+
     return (
         <div
             className={`card-menu group animate-fadeIn ${!item.is_available ? 'opacity-75' : ''}`}
@@ -46,12 +68,39 @@ export default function MenuCard({ item, index }: MenuCardProps) {
             <div className="relative h-48 overflow-hidden bg-gradient-to-br from-orange-100 to-yellow-50">
                 <div className="absolute inset-0 flex items-center justify-center 
                         group-hover:scale-110 transition-transform duration-500">
-                    {item.image ? (
-                        <img 
-                            src={item.image} 
-                            alt={item.name} 
-                            className="w-full h-full object-cover"
-                        />
+                    {images.length > 0 ? (
+                        <div className="relative w-full h-full">
+                            <img 
+                                src={images[currentImageIndex]} 
+                                alt={item.name} 
+                                className="w-full h-full object-cover"
+                            />
+                            
+                            {images.length > 1 && (
+                                <>
+                                    <button 
+                                        onClick={prevImage}
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full backdrop-blur-sm transition-all"
+                                    >
+                                        ←
+                                    </button>
+                                    <button 
+                                        onClick={nextImage}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full backdrop-blur-sm transition-all"
+                                    >
+                                        →
+                                    </button>
+                                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                                        {images.map((_, i) => (
+                                            <div 
+                                                key={i} 
+                                                className={`w-1.5 h-1.5 rounded-full ${i === currentImageIndex ? 'bg-white' : 'bg-white/50'}`}
+                                            />
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     ) : (
                         <span className="text-7xl">{item.category_icon || '🍽️'}</span>
                     )}

@@ -63,29 +63,66 @@ export default function AdminForm({ item, categories, onSave, onCancel }: AdminF
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
         setUploading(true);
-        const form = new FormData();
-        form.append('file', file);
-
+        
+        // Parse existing images
+        let currentImages: string[] = [];
         try {
-            const res = await fetch('/api/upload', { method: 'POST', body: form });
-            const data = await res.json();
-            if (data.url) {
-                setFormData(prev => ({ ...prev, image: data.url }));
-            }
-        } catch (error) {
-            console.error('Upload error:', error);
+            currentImages = JSON.parse(formData.image || '[]');
+            if (!Array.isArray(currentImages)) currentImages = formData.image ? [formData.image] : [];
+        } catch {
+            currentImages = formData.image ? [formData.image] : [];
         }
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const form = new FormData();
+            form.append('file', file);
+
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: form });
+                const data = await res.json();
+                if (data.url) {
+                    currentImages.push(data.url);
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+            }
+        }
+
+        setFormData(prev => ({ ...prev, image: JSON.stringify(currentImages) }));
         setUploading(false);
+    };
+
+    const removeImage = (index: number) => {
+        let currentImages: string[] = [];
+        try {
+            currentImages = JSON.parse(formData.image || '[]');
+        } catch {
+            currentImages = [];
+        }
+        currentImages.splice(index, 1);
+        setFormData(prev => ({ ...prev, image: JSON.stringify(currentImages) }));
+    };
+
+    const getImages = () => {
+        try {
+            const parsed = JSON.parse(formData.image || '[]');
+            return Array.isArray(parsed) ? parsed : (formData.image ? [formData.image] : []);
+        } catch {
+            return formData.image ? [formData.image] : [];
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSave(formData);
     };
+
+    const images = getImages();
 
     return (
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 animate-scaleIn">
@@ -143,32 +180,29 @@ export default function AdminForm({ item, categories, onSave, onCancel }: AdminF
 
                 {/* Image Upload */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Photos (Plusieurs possibles)</label>
                     <div className="flex gap-2 mb-2">
-                        <input
-                            type="text"
-                            name="image"
-                            value={formData.image}
-                            onChange={handleChange}
-                            className="input-field flex-1"
-                            placeholder="URL de l'image"
-                        />
-                        <label className="btn-primary cursor-pointer flex items-center gap-1 text-sm px-4">
+                        <label className="btn-primary flex-1 cursor-pointer flex items-center justify-center gap-2 text-sm py-3">
                             <FaUpload />
-                            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                            {uploading ? '...' : 'Upload'}
+                            <span>{uploading ? 'Upload en cours...' : 'Ajouter des photos'}</span>
+                            <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
                         </label>
                     </div>
-                    {formData.image && (
-                        <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-200">
-                            <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
-                            <button 
-                                type="button"
-                                onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
-                                className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-bl-lg"
-                            >
-                                <FaTimes size={10} />
-                            </button>
+                    
+                    {images.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {images.map((img, idx) => (
+                                <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                                    <img src={img} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                                    <button 
+                                        type="button"
+                                        onClick={() => removeImage(idx)}
+                                        className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-bl-lg hover:bg-red-600 transition-colors"
+                                    >
+                                        <FaTimes size={10} />
+                                    </button>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>

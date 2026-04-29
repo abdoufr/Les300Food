@@ -39,13 +39,24 @@ export default async function HomePage() {
                                 style={{ animationDelay: `${index * 100}ms` }}>
                                 <div className="relative h-40 bg-gradient-to-br from-red-50 to-yellow-50 
                                 flex items-center justify-center">
-                                    {item.image ? (
-                                        <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                    ) : (
-                                        <span className="text-6xl group-hover:scale-125 transition-transform duration-500">
-                                            {item.category_icon}
-                                        </span>
-                                    )}
+                                    {(() => {
+                                        let images: string[] = [];
+                                        try {
+                                            const parsed = JSON.parse(item.image || '[]');
+                                            images = Array.isArray(parsed) ? parsed : (item.image ? [item.image] : []);
+                                        } catch {
+                                            images = item.image ? [item.image] : [];
+                                        }
+                                        
+                                        if (images.length > 0) {
+                                            return <img src={images[0]} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />;
+                                        }
+                                        return (
+                                            <span className="text-6xl group-hover:scale-125 transition-transform duration-500">
+                                                {item.category_icon}
+                                            </span>
+                                        );
+                                    })()}
                                     <span className="badge-popular">🔥 Top</span>
                                 </div>
                                 <div className="p-4">

@@ -60,7 +60,7 @@ export function ContactInfo() {
     return (
         <div className="flex flex-col items-center gap-4 text-gray-300">
             {phone && (
-                <a href={`tel:${phone}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-2 hover:text-primary transition-colors">
                     <FaPhoneAlt className="text-primary" />
                     {phone}
                 </a>

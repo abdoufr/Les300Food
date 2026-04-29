@@ -60,10 +60,10 @@ export default function Hero() {
                                 <FaArrowRight />
                             </Link>
                             <a
-                                href={`tel:${phone}`}
+                                href={`tel:${phone.replace(/[^\d+]/g, '')}`}
                                 className="btn-secondary text-lg flex items-center justify-center gap-2 px-8 py-4"
                             >
-                                📞 Appelez-nous pour commander
+                                📞 Appeler pour commander
                             </a>
                         </div>
 

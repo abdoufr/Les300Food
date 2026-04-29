@@ -37,12 +37,12 @@ export default function Footer() {
                             📋 Voir le Menu
                         </Link>
                         <a
-                            href={`tel:${phone}`}
+                            href={`tel:${phone.replace(/[^\d+]/g, '')}`}
                             className="bg-green-500 text-white px-8 py-4 rounded-full 
                          font-bold text-lg hover:bg-green-600 transition-all 
                          duration-300 hover:shadow-xl"
                         >
-                            📞 Appelez-nous pour commander
+                            📞 Appeler pour commander
                         </a>
                     </div>
                 </div>

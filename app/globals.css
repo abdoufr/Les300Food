@@ -13,8 +13,8 @@
 
     body {
         font-family: 'Inter', sans-serif;
-        background-color: #FFF8F0;
-        color: #1A1A2E;
+        background-color: #ffffff;
+        color: #111111;
     }
 
     h1,
@@ -31,18 +31,18 @@
     }
 
     ::-webkit-scrollbar-track {
-        background: #FFF8F0;
+        background: #f1f1f1;
     }
 
     ::-webkit-scrollbar-thumb {
-        background: #FF6B35;
+        background: #DE2824;
         border-radius: 4px;
     }
 }
 
 @layer components {
     .btn-primary {
-        @apply bg-primary text-white px-6 py-3 rounded-full font-semibold hover:bg-orange-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:shadow-md;
+        @apply bg-primary text-white px-6 py-3 rounded-full font-semibold hover:bg-red-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:shadow-md;
     }
 
     .btn-secondary {
@@ -54,7 +54,7 @@
     }
 
     .card-menu {
-        @apply bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-orange-50;
+        @apply bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-gray-100;
     }
 
     .glass-card {
@@ -82,7 +82,7 @@
     }
 
     .filter-btn-inactive {
-        @apply bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary hover:bg-orange-50;
+        @apply bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary hover:bg-red-50;
     }
 
     .gradient-text {

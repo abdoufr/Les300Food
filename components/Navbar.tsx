@@ -36,8 +36,19 @@ export default function Navbar() {
                 <div className="flex justify-between items-center">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 group">
-                        <span className="text-3xl group-hover:animate-bounce">🍔</span>
-                        <span className={`text-2xl font-bold font-heading transition-colors duration-300 ${scrolled ? 'text-dark' : 'text-white'
+                        <div className="relative w-12 h-12 flex items-center justify-center">
+                            <img 
+                                src="/logo.png" 
+                                alt="Logo" 
+                                className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                }}
+                            />
+                            <span className="text-3xl group-hover:animate-bounce hidden">🍔</span>
+                        </div>
+                        <span className={`text-2xl font-black font-heading tracking-tighter transition-colors duration-300 ${scrolled ? 'text-primary' : 'text-white'
                             }`}>
                             {siteName}
                         </span>

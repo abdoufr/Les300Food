@@ -44,9 +44,17 @@ export default function MenuCard({ item, index }: MenuCardProps) {
         >
             {/* Image */}
             <div className="relative h-48 overflow-hidden bg-gradient-to-br from-orange-100 to-yellow-50">
-                <div className="absolute inset-0 flex items-center justify-center text-7xl 
+                <div className="absolute inset-0 flex items-center justify-center 
                         group-hover:scale-110 transition-transform duration-500">
-                    {item.category_icon || '🍽️'}
+                    {item.image ? (
+                        <img 
+                            src={item.image} 
+                            alt={item.name} 
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <span className="text-7xl">{item.category_icon || '🍽️'}</span>
+                    )}
                 </div>
 
                 {item.is_popular === 1 && (

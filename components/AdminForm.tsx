@@ -144,7 +144,7 @@ export default function AdminForm({ item, categories, onSave, onCancel }: AdminF
                 {/* Image Upload */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mb-2">
                         <input
                             type="text"
                             name="image"
@@ -159,6 +159,18 @@ export default function AdminForm({ item, categories, onSave, onCancel }: AdminF
                             {uploading ? '...' : 'Upload'}
                         </label>
                     </div>
+                    {formData.image && (
+                        <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-200">
+                            <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                            <button 
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                                className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-bl-lg"
+                            >
+                                <FaTimes size={10} />
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Description */}

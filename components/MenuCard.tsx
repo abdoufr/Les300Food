@@ -1,6 +1,7 @@
 // components/MenuCard.tsx
 'use client';
 
+import { useState, useEffect } from 'react';
 import { FaPhoneAlt } from 'react-icons/fa';
 
 interface MenuItem {
@@ -21,10 +22,19 @@ interface MenuCardProps {
 }
 
 export default function MenuCard({ item, index }: MenuCardProps) {
-    const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP || '';
+    const [phone, setPhone] = useState('0542017560');
+
+    useEffect(() => {
+        fetch('/api/public-settings')
+            .then(res => res.json())
+            .then(data => {
+                if (data.phone) setPhone(data.phone);
+            })
+            .catch(() => { });
+    }, []);
 
     const callToOrder = () => {
-        window.open(`tel:${whatsappNumber}`, '_self');
+        window.open(`tel:${phone.replace(/[^\d+]/g, '')}`, '_self');
     };
 
     return (

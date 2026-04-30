@@ -46,7 +46,7 @@ export default function Navbar() {
                                     (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
                                 }}
                             />
-                            <span className="text-3xl group-hover:animate-bounce hidden">🍔</span>
+                            <span className="text-3xl group-hover:animate-bounce hidden">🍕</span>
                         </div>
                         <span className={`text-2xl font-black font-heading tracking-tighter transition-colors duration-300 ${scrolled ? 'text-primary' : 'text-white'
                             }`}>

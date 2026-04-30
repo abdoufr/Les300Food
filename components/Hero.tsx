@@ -30,10 +30,10 @@ export default function Hero() {
             </div>
 
             {/* Floating emojis */}
-            <div className="absolute top-20 left-10 text-6xl animate-float opacity-30">🍔</div>
+            <div className="absolute top-20 left-10 text-6xl animate-float opacity-30">🍕</div>
             <div className="absolute top-40 right-20 text-5xl animate-float animation-delay-200 opacity-30">🍟</div>
             <div className="absolute bottom-40 left-20 text-5xl animate-float animation-delay-400 opacity-30">🌮</div>
-            <div className="absolute bottom-20 right-10 text-6xl animate-float opacity-30">🍕</div>
+            <div className="absolute bottom-20 right-10 text-6xl animate-float opacity-30">🍔</div>
 
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
                 <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -89,7 +89,7 @@ export default function Hero() {
                     {/* Right - Big Emoji / Image */}
                     <div className="hidden lg:flex justify-center items-center">
                         <div className="relative">
-                            <div className="text-[200px] animate-float select-none">🍔</div>
+                            <div className="text-[200px] animate-float select-none">🍕</div>
 
                         </div>
                     </div>

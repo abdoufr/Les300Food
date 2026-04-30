@@ -8,6 +8,18 @@ export default function Hero() {
     const [siteName, setSiteName] = useState(process.env.NEXT_PUBLIC_SITE_NAME || '300FOOD');
     const [phone, setPhone] = useState(process.env.NEXT_PUBLIC_PHONE || '');
 
+    const [currentEmoji, setCurrentEmoji] = useState('🍕');
+    const emojis = ['🍕', '🍔', '🥖', '🍽️'];
+
+    useEffect(() => {
+        let i = 0;
+        const interval = setInterval(() => {
+            i = (i + 1) % emojis.length;
+            setCurrentEmoji(emojis[i]);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
     useEffect(() => {
         fetch('/api/public-settings')
             .then(res => res.json())
@@ -89,8 +101,9 @@ export default function Hero() {
                     {/* Right - Big Emoji / Image */}
                     <div className="hidden lg:flex justify-center items-center">
                         <div className="relative">
-                            <div className="text-[200px] animate-float select-none">🍕</div>
-
+                            <div className="text-[200px] animate-float select-none transition-all duration-500">
+                                {currentEmoji}
+                            </div>
                         </div>
                     </div>
                 </div>

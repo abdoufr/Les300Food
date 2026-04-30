@@ -110,7 +110,12 @@ function MenuContent() {
 
                     {loading ? (
                         <div className="text-center py-20">
-                            <div className="text-6xl animate-bounce mb-4">🍔</div>
+                            <div className="text-6xl animate-bounce mb-4">
+                                {(() => {
+                                    const emojis = ['🍔', '🍕', '🥖', '🍽️'];
+                                    return emojis[Math.floor(Date.now() / 1000) % emojis.length];
+                                })()}
+                            </div>
                             <p className="text-gray-500 text-lg">Chargement du menu...</p>
                         </div>
                     ) : items.length === 0 ? (

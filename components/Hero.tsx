@@ -71,12 +71,9 @@ export default function Hero() {
                                 Voir le Menu
                                 <FaArrowRight />
                             </Link>
-                            <a
-                                href={`tel:${phone.replace(/[^\d+]/g, '')}`}
-                                className="btn-secondary text-lg flex items-center justify-center gap-2 px-8 py-4"
-                            >
-                                📞 Appeler pour commander
-                            </a>
+                            <Link href="/composer" className="bg-yellow-400 hover:bg-yellow-500 text-dark font-black text-lg flex items-center justify-center gap-2 px-8 py-4 rounded-full transition-all shadow-lg hover:scale-105">
+                                👨‍🍳 Composer votre plat
+                            </Link>
                         </div>
 
                         {/* Stats */}

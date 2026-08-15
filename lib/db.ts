@@ -54,6 +54,16 @@ async function initDB() {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS ingredients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      price REAL NOT NULL,
+      category TEXT NOT NULL,
+      subcategory TEXT NOT NULL,
+      is_available INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
     // Initialiser les settings par défaut
@@ -67,6 +77,11 @@ async function initDB() {
             ['facebook', process.env.NEXT_PUBLIC_FACEBOOK || ''],
             ['instagram', process.env.NEXT_PUBLIC_INSTAGRAM || ''],
             ['tiktok', process.env.NEXT_PUBLIC_TIKTOK || ''],
+            ['base_price_pizza', '300'],
+            ['base_price_sandwich', '150'],
+            ['base_price_burger', '200'],
+            ['base_price_tacos', '200'],
+            ['base_price_crepe', '250'],
         ];
         for (const [key, value] of defaults) {
             await db.execute({
@@ -74,6 +89,21 @@ async function initDB() {
                 args: [key, value],
             });
         }
+    }
+
+    // Assurer que les prix de base des catégories existent dans settings
+    const defaultBasePrices = [
+        ['base_price_pizza', '300'],
+        ['base_price_sandwich', '150'],
+        ['base_price_burger', '200'],
+        ['base_price_tacos', '200'],
+        ['base_price_crepe', '250'],
+    ];
+    for (const [key, value] of defaultBasePrices) {
+        await db.execute({
+            sql: 'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+            args: [key, value],
+        });
     }
 
     // Vérifier si les catégories existent
@@ -101,6 +131,100 @@ async function initDB() {
             args: ['admin', hash],
         });
     }
+
+    // Ingrédients par défaut pour le Customizer 3D (/composer)
+    const ingsCount = await db.execute('SELECT COUNT(*) as count FROM ingredients');
+    if ((ingsCount.rows[0] as any).count === 0) {
+        const defaultIngredients = [
+            // Sandwich
+            ['Pain Baguette', 100, 'sandwich', 'base', 1],
+            ['Pain Rond', 120, 'sandwich', 'base', 1],
+            ['Pain Ciabatta', 150, 'sandwich', 'base', 1],
+            ['Escalope de Poulet', 250, 'sandwich', 'viande', 1],
+            ['Poulet Mariné', 300, 'sandwich', 'viande', 1],
+            ['Viande Hachée', 350, 'sandwich', 'viande', 1],
+            ['Merguez', 300, 'sandwich', 'viande', 1],
+            ['Fromage Fondant', 50, 'sandwich', 'supplement', 1],
+            ['Cheddar', 80, 'sandwich', 'supplement', 1],
+            ['Mozzarella', 100, 'sandwich', 'supplement', 1],
+            ['Frites', 50, 'sandwich', 'supplement', 1],
+            ['Oeuf', 40, 'sandwich', 'supplement', 1],
+            ['Sauce Algérienne', 0, 'sandwich', 'sauce', 1],
+            ['Sauce Harissa', 0, 'sandwich', 'sauce', 1],
+            ['Sauce Mayonnaise', 0, 'sandwich', 'sauce', 1],
+            ['Sauce Samouraï', 0, 'sandwich', 'sauce', 1],
+
+            // Pizza
+            ['Pâte Classique', 300, 'pizza', 'base', 1],
+            ['Pâte Fine', 300, 'pizza', 'base', 1],
+            ['Pâte Pan', 450, 'pizza', 'base', 1],
+            ['Pâte Stuffed Crust (Fromage)', 550, 'pizza', 'base', 1],
+            ['Poulet Grillé', 200, 'pizza', 'viande', 1],
+            ['Viande Hachée', 250, 'pizza', 'viande', 1],
+            ['Pepperoni', 250, 'pizza', 'viande', 1],
+            ['Thon', 200, 'pizza', 'viande', 1],
+            ['Extra Mozzarella', 150, 'pizza', 'supplement', 1],
+            ['Champignons', 100, 'pizza', 'supplement', 1],
+            ['Olives Noires', 50, 'pizza', 'supplement', 1],
+            ['Poivrons', 50, 'pizza', 'supplement', 1],
+            ['Sauce Tomate Maison', 0, 'pizza', 'sauce', 1],
+            ['Sauce Crème Fraîche', 0, 'pizza', 'sauce', 1],
+            ['Sauce BBQ', 0, 'pizza', 'sauce', 1],
+
+            // Burger
+            ['Bun Brioché', 150, 'burger', 'base', 1],
+            ['Bun Sésame', 120, 'burger', 'base', 1],
+            ['Double Bun', 200, 'burger', 'base', 1],
+            ['Steak Haché 150g', 300, 'burger', 'viande', 1],
+            ['Double Steak Haché', 550, 'burger', 'viande', 1],
+            ['Crispy Chicken', 350, 'burger', 'viande', 1],
+            ['Tranche Cheddar', 80, 'burger', 'supplement', 1],
+            ['Bacon de Dinde', 120, 'burger', 'supplement', 1],
+            ['Oignons Caramelisés', 60, 'burger', 'supplement', 1],
+            ['Cornichons & Salade', 40, 'burger', 'supplement', 1],
+            ['Sauce Burger Special', 0, 'burger', 'sauce', 1],
+            ['Sauce Cheesy', 0, 'burger', 'sauce', 1],
+
+            // Tacos
+            ['Galette Tacos Simple', 150, 'tacos', 'base', 1],
+            ['Galette Tacos Double', 250, 'tacos', 'base', 1],
+            ['Escalope', 250, 'tacos', 'viande', 1],
+            ['Poulet Pané', 300, 'tacos', 'viande', 1],
+            ['Viande Hachée', 350, 'tacos', 'viande', 1],
+            ['Cordon Bleu', 300, 'tacos', 'viande', 1],
+            ['Sauce Fromagère Maison', 100, 'tacos', 'supplement', 1],
+            ['Extra Cheddar', 80, 'tacos', 'supplement', 1],
+            ['Frites Intérieures', 50, 'tacos', 'supplement', 1],
+            ['Sauce Algérienne', 0, 'tacos', 'sauce', 1],
+            ['Sauce Blanche', 0, 'tacos', 'sauce', 1],
+            ['Sauce Biggy', 0, 'tacos', 'sauce', 1],
+
+            // Crêpe
+            ['Pâte Crêpe Salée', 0, 'crepe', 'base', 1],
+            ['Pâte Crêpe Sucrée', 0, 'crepe', 'base', 1],
+            ['Poulet Mariné', 200, 'crepe', 'viande', 1],
+            ['Viande Hachée', 250, 'crepe', 'viande', 1],
+            ['Nutella', 150, 'crepe', 'viande', 1],
+            ['Fromage Râpé', 80, 'crepe', 'supplement', 1],
+            ['Banane', 100, 'crepe', 'supplement', 1],
+            ['Kinder', 150, 'crepe', 'supplement', 1],
+            ['Sauce Chocolat', 0, 'crepe', 'sauce', 1],
+            ['Sauce Blanche', 0, 'crepe', 'sauce', 1]
+        ];
+
+        for (const [name, price, category, subcategory, is_available] of defaultIngredients) {
+            await db.execute({
+                sql: 'INSERT INTO ingredients (name, price, category, subcategory, is_available) VALUES (?, ?, ?, ?, ?)',
+                args: [name, price, category, subcategory, is_available],
+            });
+        }
+    }
+
+    // Mise à jour du prix de base Pâte Classique si besoin
+    await db.execute({
+        sql: "UPDATE ingredients SET price = 300 WHERE name = 'Pâte Classique' AND price = 400",
+        args: []
+    });
 }
 
 // Appeler l'init au démarrage
@@ -225,4 +349,43 @@ export async function updateSettings(settings: any) {
             args: [key, value as string],
         });
     }
+}
+
+// Ingredients Management
+export async function getIngredients(category?: string) {
+    let sql = 'SELECT * FROM ingredients';
+    const args: any[] = [];
+    if (category) {
+        sql += ' WHERE category = ?';
+        args.push(category);
+    }
+    sql += ' ORDER BY category, subcategory, name';
+    const result = await db.execute({ sql, args });
+    return result.rows;
+}
+
+export async function createIngredient(data: any) {
+    return await db.execute({
+        sql: 'INSERT INTO ingredients (name, price, category, subcategory, is_available) VALUES (?, ?, ?, ?, ?)',
+        args: [data.name, data.price, data.category, data.subcategory, data.is_available ?? 1],
+    });
+}
+
+export async function updateIngredient(id: number, data: any) {
+    const allowedFields = ['name', 'price', 'category', 'subcategory', 'is_available'];
+    const fields: string[] = [];
+    const args: any[] = [];
+    Object.entries(data).forEach(([key, value]) => {
+        if (allowedFields.includes(key) && value !== undefined) {
+            fields.push(`${key} = ?`);
+            args.push(value);
+        }
+    });
+    if (fields.length === 0) return;
+    args.push(id);
+    return await db.execute({ sql: `UPDATE ingredients SET ${fields.join(', ')} WHERE id = ?`, args });
+}
+
+export async function deleteIngredient(id: number) {
+    return await db.execute({ sql: 'DELETE FROM ingredients WHERE id = ?', args: [id] });
 }

@@ -39,6 +39,16 @@ function MenuContent() {
     );
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
+    const [loadingEmojiIndex, setLoadingEmojiIndex] = useState(0);
+    const loadingEmojis = ['🍔', '🍕', '🥖', '🍽️'];
+
+    useEffect(() => {
+        if (!loading) return;
+        const interval = setInterval(() => {
+            setLoadingEmojiIndex((prev) => (prev + 1) % loadingEmojis.length);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [loading, loadingEmojis.length]);
 
     const fetchMenu = useCallback(async () => {
         try {
@@ -111,10 +121,7 @@ function MenuContent() {
                     {loading ? (
                         <div className="text-center py-20">
                             <div className="text-6xl animate-bounce mb-4">
-                                {(() => {
-                                    const emojis = ['🍔', '🍕', '🥖', '🍽️'];
-                                    return emojis[Math.floor(Date.now() / 1000) % emojis.length];
-                                })()}
+                                {loadingEmojis[loadingEmojiIndex]}
                             </div>
                             <p className="text-gray-500 text-lg">Chargement du menu...</p>
                         </div>

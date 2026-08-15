@@ -64,6 +64,10 @@ export default function Navbar() {
                             }`}>
                             Menu
                         </Link>
+                        <Link href="/composer" className={`font-semibold hover:text-primary transition-colors flex items-center gap-1.5 ${scrolled ? 'text-primary' : 'text-yellow-400'
+                            }`}>
+                            👨‍🍳 Composer
+                        </Link>
                         <Link href="/#contact" className={`font-medium hover:text-primary transition-colors ${scrolled ? 'text-gray-700' : 'text-white'
                             }`}>
                             Contact
@@ -95,6 +99,10 @@ export default function Navbar() {
                             <Link href="/menu" onClick={() => setIsOpen(false)}
                                 className="block px-4 py-2 rounded-lg hover:bg-primary/10 text-dark font-medium">
                                 📋 Menu
+                            </Link>
+                            <Link href="/composer" onClick={() => setIsOpen(false)}
+                                className="block px-4 py-2 rounded-lg bg-primary/10 text-primary font-bold">
+                                👨‍🍳 Composer votre plat
                             </Link>
                             <Link href="/#contact" onClick={() => setIsOpen(false)}
                                 className="block px-4 py-2 rounded-lg hover:bg-primary/10 text-dark font-medium">

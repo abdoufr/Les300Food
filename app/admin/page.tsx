@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation';
 import AdminForm from '@/components/AdminForm';
 import CategoryManager from '@/components/CategoryManager';
 import SettingsManager from '@/components/SettingsManager';
+import IngredientManager from '@/components/IngredientManager';
 import toast from 'react-hot-toast';
 import {
     FaPlus, FaEdit, FaTrash, FaSignOutAlt, FaHome, FaUtensils,
-    FaChartBar, FaSearch, FaEye, FaEyeSlash, FaFire, FaCheck, FaTags, FaCog
+    FaChartBar, FaSearch, FaEye, FaEyeSlash, FaFire, FaCheck, FaTags, FaCog, FaBoxes
 } from 'react-icons/fa';
 
 interface MenuItem {
@@ -34,7 +35,7 @@ interface Category {
 
 export default function AdminPage() {
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<'items' | 'categories' | 'settings'>('items');
+    const [activeTab, setActiveTab] = useState<'items' | 'categories' | 'ingredients' | 'settings'>('items');
     const [items, setItems] = useState<MenuItem[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [showForm, setShowForm] = useState(false);
@@ -271,7 +272,7 @@ export default function AdminPage() {
                 </div>
 
                 {/* Tab Switcher */}
-                <div className="flex gap-4 mb-8">
+                <div className="flex flex-wrap gap-4 mb-8">
                     <button
                         onClick={() => setActiveTab('items')}
                         className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'items'
@@ -291,6 +292,15 @@ export default function AdminPage() {
                         <FaTags /> Catégories
                     </button>
                     <button
+                        onClick={() => setActiveTab('ingredients')}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'ingredients'
+                            ? 'bg-primary text-white shadow-lg'
+                            : 'bg-white text-gray-500 hover:bg-orange-50'
+                            }`}
+                    >
+                        <FaBoxes /> Composer (Prix Ingrédients)
+                    </button>
+                    <button
                         onClick={() => setActiveTab('settings')}
                         className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'settings'
                             ? 'bg-primary text-white shadow-lg'
@@ -303,6 +313,8 @@ export default function AdminPage() {
 
                 {activeTab === 'settings' ? (
                     <SettingsManager token={token} />
+                ) : activeTab === 'ingredients' ? (
+                    <IngredientManager token={token} />
                 ) : activeTab === 'categories' ? (
                     <CategoryManager
                         categories={categories}

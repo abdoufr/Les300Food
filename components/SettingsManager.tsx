@@ -18,6 +18,11 @@ export default function SettingsManager({ token }: SettingsManagerProps) {
         facebook: '',
         instagram: '',
         tiktok: '',
+        base_price_pizza: '300',
+        base_price_sandwich: '150',
+        base_price_burger: '200',
+        base_price_tacos: '200',
+        base_price_crepe: '250',
     });
     const [loading, setLoading] = useState(true);
 
@@ -164,6 +169,69 @@ export default function SettingsManager({ token }: SettingsManagerProps) {
                                 placeholder="https://tiktok.com/@..."
                             />
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Section Prix de base des Catégories (Customizer) */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="text-xl font-bold font-heading text-dark mb-2 flex items-center gap-2">
+                    💰 Prix de Base des Catégories (Customizer / Composer)
+                </h3>
+                <p className="text-sm text-gray-500 mb-6">
+                    Définissez le tarif de départ fixe pour chaque catégorie avant l'ajout des suppléments.
+                </p>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">🍕 Prix de base Pizza (DA)</label>
+                        <input
+                            type="number"
+                            className="input-field font-bold text-primary"
+                            value={settings.base_price_pizza || 300}
+                            onChange={(e) => setSettings({...settings, base_price_pizza: e.target.value})}
+                            placeholder="300"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">🥪 Prix de base Sandwich (DA)</label>
+                        <input
+                            type="number"
+                            className="input-field font-bold text-primary"
+                            value={settings.base_price_sandwich || 150}
+                            onChange={(e) => setSettings({...settings, base_price_sandwich: e.target.value})}
+                            placeholder="150"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">🍔 Prix de base Burger (DA)</label>
+                        <input
+                            type="number"
+                            className="input-field font-bold text-primary"
+                            value={settings.base_price_burger || 200}
+                            onChange={(e) => setSettings({...settings, base_price_burger: e.target.value})}
+                            placeholder="200"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">🥞 Prix de base Crêpe (DA)</label>
+                        <input
+                            type="number"
+                            className="input-field font-bold text-primary"
+                            value={settings.base_price_crepe || 250}
+                            onChange={(e) => setSettings({...settings, base_price_crepe: e.target.value})}
+                            placeholder="250"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">🌮 Prix de base Tacos (DA)</label>
+                        <input
+                            type="number"
+                            className="input-field font-bold text-primary"
+                            value={settings.base_price_tacos || 200}
+                            onChange={(e) => setSettings({...settings, base_price_tacos: e.target.value})}
+                            placeholder="200"
+                        />
                     </div>
                 </div>
             </div>

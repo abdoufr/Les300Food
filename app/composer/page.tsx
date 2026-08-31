@@ -1,12 +1,42 @@
 // app/composer/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import toast from 'react-hot-toast';
-import { FaWhatsapp, FaArrowRight, FaArrowLeft, FaUndoAlt, FaCheck } from 'react-icons/fa';
+import {
+    FaWhatsapp,
+    FaArrowRight,
+    FaArrowLeft,
+    FaUndoAlt,
+    FaCheck,
+    FaSearch,
+    FaUtensils,
+    FaEdit,
+    FaStickyNote
+} from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
+
+interface MenuItem {
+    id: number;
+    name: string;
+    description: string;
+    price: number;
+    image: string;
+    category_name: string;
+    category_icon: string;
+    category_id: number;
+    is_available: number;
+    is_popular: number;
+}
+
+interface Category {
+    id: number;
+    name: string;
+    icon: string;
+}
 
 interface Ingredient {
     id: number;
@@ -17,57 +47,68 @@ interface Ingredient {
     is_available: number;
 }
 
-export default function ComposerPage() {
+function ComposerContent() {
+    const searchParams = useSearchParams();
+    const dishIdParam = searchParams.get('dishId');
+    const categoryParam = searchParams.get('category');
+
+    const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedCategory, setSelectedCategory] = useState<'sandwich' | 'pizza' | 'tacos' | 'burger' | 'crepe'>('sandwich');
-    
-    const [categoryBasePrices, setCategoryBasePrices] = useState<{ [key: string]: number }>({
-        pizza: 300,
-        sandwich: 150,
-        burger: 200,
-        tacos: 200,
-        crepe: 250
-    });
 
-    // Wizard step state
-    const [currentStep, setCurrentStep] = useState(1); // 1: Base, 2: Viandes, 3: Supplements, 4: Sauces, 5: Recap
+    // Selected Dish
+    const [selectedDish, setSelectedDish] = useState<MenuItem | null>(null);
 
-    // Selection state
-    const [selectedBase, setSelectedBase] = useState<Ingredient | null>(null);
+    // Dish filter in Step 1
+    const [selectedCatFilter, setSelectedCatFilter] = useState<number | null>(
+        categoryParam ? parseInt(categoryParam) : null
+    );
+    const [dishSearchQuery, setDishSearchQuery] = useState('');
+
+    // Wizard step state (1: Dish selection, 2: Viandes extra, 3: Supplements, 4: Sauces, 5: Recap)
+    const [currentStep, setCurrentStep] = useState(1);
+
+    // Customization states
     const [selectedViandes, setSelectedViandes] = useState<Ingredient[]>([]);
     const [selectedSupplements, setSelectedSupplements] = useState<Ingredient[]>([]);
     const [selectedSauces, setSelectedSauces] = useState<Ingredient[]>([]);
+    const [specialNote, setSpecialNote] = useState('');
 
     const [whatsapp, setWhatsapp] = useState('');
     const [siteName, setSiteName] = useState('300FOOD');
 
-    // Fetch ingredients & settings
+    // Fetch initial data
     const loadData = useCallback(async () => {
         try {
-            const ingRes = await fetch('/api/ingredients');
+            const [menuRes, ingRes, settingsRes] = await Promise.all([
+                fetch('/api/menu'),
+                fetch('/api/ingredients'),
+                fetch('/api/public-settings')
+            ]);
+
+            const menuData = await menuRes.json();
             const ingData = await ingRes.json();
+            const settingsData = await settingsRes.json();
+
+            if (menuData.items && Array.isArray(menuData.items)) {
+                setMenuItems(menuData.items.filter((item: MenuItem) => item.is_available === 1));
+            }
+            if (menuData.categories && Array.isArray(menuData.categories)) {
+                setCategories(menuData.categories);
+            }
+
             if (Array.isArray(ingData)) {
                 setIngredients(ingData.filter(i => i.is_available === 1));
             }
 
-            const settingsRes = await fetch('/api/public-settings');
-            const settingsData = await settingsRes.json();
             if (settingsData.whatsapp) setWhatsapp(settingsData.whatsapp);
             if (settingsData.site_name) setSiteName(settingsData.site_name);
-            
-            setCategoryBasePrices({
-                pizza: parseInt(settingsData.base_price_pizza || '300'),
-                sandwich: parseInt(settingsData.base_price_sandwich || '150'),
-                burger: parseInt(settingsData.base_price_burger || '200'),
-                tacos: parseInt(settingsData.base_price_tacos || '200'),
-                crepe: parseInt(settingsData.base_price_crepe || '250'),
-            });
-            
+
             setLoading(false);
         } catch (error) {
-            console.error(error);
-            toast.error('Erreur de chargement des données');
+            console.error('Error loading composer data:', error);
+            toast.error('Erreur lors du chargement des données');
             setLoading(false);
         }
     }, []);
@@ -76,407 +117,890 @@ export default function ComposerPage() {
         loadData();
     }, [loadData]);
 
-    // Filter ingredients based on current selected category
-    const catIngredients = ingredients.filter(i => i.category === selectedCategory);
-    const bases = catIngredients.filter(i => i.subcategory === 'base');
-    const viandes = catIngredients.filter(i => i.subcategory === 'viande');
-    const supplements = catIngredients.filter(i => i.subcategory === 'supplement');
-    const sauces = catIngredients.filter(i => i.subcategory === 'sauce');
-
-    // Reset selection when category changes
+    // Handle preselection if dishId is in searchParams
     useEffect(() => {
-        if (bases.length > 0) {
-            setSelectedBase(bases[0]);
-        } else {
-            setSelectedBase(null);
+        if (!loading && dishIdParam && menuItems.length > 0 && !selectedDish) {
+            const foundDish = menuItems.find(item => item.id === parseInt(dishIdParam));
+            if (foundDish) {
+                setSelectedDish(foundDish);
+                setCurrentStep(2); // Jump directly to customization
+                toast.success(`Plat "${foundDish.name}" sélectionné !`);
+            }
         }
-        setSelectedViandes([]);
-        setSelectedSupplements([]);
-        setSelectedSauces([]);
-        setCurrentStep(1); // Return to step 1
-    }, [selectedCategory, ingredients]); // React on ingredients load too
+    }, [loading, dishIdParam, menuItems, selectedDish]);
 
-    // Calculate total price: Category Base Price + Base extra + Viandes + Supplements + Sauces
-    const calculateTotal = () => {
-        let total = categoryBasePrices[selectedCategory] || 0;
-        if (selectedBase) total += selectedBase.price;
+    // Map Category Name to Ingredient Category Key (e.g. "Burgers" -> "burger")
+    const ingredientCategoryKey = useMemo(() => {
+        if (!selectedDish) return 'sandwich';
+        const lower = (selectedDish.category_name || '').toLowerCase();
+        if (lower.includes('burger')) return 'burger';
+        if (lower.includes('pizz')) return 'pizza';
+        if (lower.includes('taco')) return 'tacos';
+        if (lower.includes('sandwich')) return 'sandwich';
+        if (lower.includes('crep') || lower.includes('crêp')) return 'crepe';
+        return 'sandwich';
+    }, [selectedDish]);
+
+    // Filter available ingredients for the selected dish category (or fallback to all)
+    const categoryIngredients = useMemo(() => {
+        const matching = ingredients.filter(i => i.category === ingredientCategoryKey);
+        return matching.length > 0 ? matching : ingredients;
+    }, [ingredients, ingredientCategoryKey]);
+
+    const availableViandes = useMemo(() => {
+        const catViandes = categoryIngredients.filter(i => i.subcategory === 'viande');
+        if (catViandes.length > 0) return catViandes;
+        return ingredients.filter(i => i.subcategory === 'viande');
+    }, [categoryIngredients, ingredients]);
+
+    const availableSupplements = useMemo(() => {
+        const catSupps = categoryIngredients.filter(i => i.subcategory === 'supplement');
+        if (catSupps.length > 0) return catSupps;
+        return ingredients.filter(i => i.subcategory === 'supplement');
+    }, [categoryIngredients, ingredients]);
+
+    const availableSauces = useMemo(() => {
+        // Sauces are generally universal; get unique by name
+        const allSauces = ingredients.filter(i => i.subcategory === 'sauce');
+        const uniqueMap = new Map<string, Ingredient>();
+        allSauces.forEach(s => {
+            if (!uniqueMap.has(s.name)) uniqueMap.set(s.name, s);
+        });
+        return Array.from(uniqueMap.values());
+    }, [ingredients]);
+
+    // Filtered menu dishes for Step 1
+    const filteredDishes = useMemo(() => {
+        let list = [...menuItems];
+        if (selectedCatFilter) {
+            list = list.filter(item => item.category_id === selectedCatFilter);
+        }
+        if (dishSearchQuery.trim()) {
+            const query = dishSearchQuery.toLowerCase();
+            list = list.filter(
+                item =>
+                    item.name.toLowerCase().includes(query) ||
+                    item.description?.toLowerCase().includes(query) ||
+                    item.category_name?.toLowerCase().includes(query)
+            );
+        }
+        return list;
+    }, [menuItems, selectedCatFilter, dishSearchQuery]);
+
+    // Calculate total price: Dish Base Price + Extra Viandes + Supplements
+    const calculateTotal = useCallback(() => {
+        let total = selectedDish ? selectedDish.price : 0;
         selectedViandes.forEach(v => total += v.price);
         selectedSupplements.forEach(s => total += s.price);
         selectedSauces.forEach(sa => total += sa.price);
         return total;
-    };
+    }, [selectedDish, selectedViandes, selectedSupplements, selectedSauces]);
 
+    // Toggle handlers
     const toggleViande = (viande: Ingredient) => {
-        setSelectedViandes(prev => prev.find(v => v.id === viande.id) ? prev.filter(v => v.id !== viande.id) : [...prev, viande]);
+        setSelectedViandes(prev =>
+            prev.find(v => v.id === viande.id)
+                ? prev.filter(v => v.id !== viande.id)
+                : [...prev, viande]
+        );
     };
 
     const toggleSupplement = (supp: Ingredient) => {
-        setSelectedSupplements(prev => prev.find(s => s.id === supp.id) ? prev.filter(s => s.id !== supp.id) : [...prev, supp]);
+        setSelectedSupplements(prev =>
+            prev.find(s => s.id === supp.id)
+                ? prev.filter(s => s.id !== supp.id)
+                : [...prev, supp]
+        );
     };
 
     const toggleSauce = (sauce: Ingredient) => {
         setSelectedSauces(prev => {
-            if (prev.find(s => s.id === sauce.id)) return prev.filter(s => s.id !== sauce.id);
-            if (prev.length >= 3) { toast.error('Maximum 3 sauces par plat'); return prev; }
+            if (prev.find(s => s.id === sauce.id)) {
+                return prev.filter(s => s.id !== sauce.id);
+            }
+            if (prev.length >= 3) {
+                toast.error('Maximum 3 sauces par plat');
+                return prev;
+            }
             return [...prev, sauce];
         });
     };
 
-    const sendWhatsAppOrder = () => {
-        const categoryLabels: { [key: string]: string } = {
-            sandwich: '🥪 SANDWICH CUSTOM',
-            pizza: '🍕 PIZZA CUSTOM',
-            tacos: '🌮 TACOS CUSTOM',
-            burger: '🍔 BURGER CUSTOM',
-            crepe: '🥞 CRÊPE CUSTOM'
-        };
+    const handleSelectDish = (dish: MenuItem) => {
+        setSelectedDish(dish);
+        // Reset previously selected extras when changing dish
+        setSelectedViandes([]);
+        setSelectedSupplements([]);
+        setSelectedSauces([]);
+        setCurrentStep(2); // Proceed to extras
+        toast.success(`Plat choisi : ${dish.name}`);
+    };
 
-        const basePrice = categoryBasePrices[selectedCategory] || 0;
+    const resetAll = () => {
+        setSelectedDish(null);
+        setSelectedViandes([]);
+        setSelectedSupplements([]);
+        setSelectedSauces([]);
+        setSpecialNote('');
+        setCurrentStep(1);
+        toast.success('Réinitialisé');
+    };
+
+    // Helper to get dish image
+    const getDishThumbnail = (imageStr?: string) => {
+        if (!imageStr) return null;
+        try {
+            const parsed = JSON.parse(imageStr);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+            return imageStr;
+        } catch {
+            return imageStr;
+        }
+    };
+
+    // Send WhatsApp Order
+    const sendWhatsAppOrder = () => {
+        if (!selectedDish) {
+            toast.error('Veuillez choisir un plat');
+            setCurrentStep(1);
+            return;
+        }
 
         let message = `Bonjour ${siteName} ! Je souhaite commander un plat personnalisé :\n\n`;
-        message += `${categoryLabels[selectedCategory]}\n`;
-        message += `💰 Prix de départ (${selectedCategory}) : ${basePrice} DA\n`;
-        if (selectedBase) message += `🥖 Base : ${selectedBase.name}${selectedBase.price > 0 ? ` (+${selectedBase.price} DA)` : ''}\n`;
+        message += `🍽️ *PLAT CHOISI : ${selectedDish.name.toUpperCase()}*\n`;
+        message += `💰 *Prix de base :* ${selectedDish.price} DA\n`;
+        if (selectedDish.description) {
+            message += `ℹ️ *Description :* ${selectedDish.description}\n`;
+        }
 
-        if (selectedViandes.length > 0) message += `🥩 Viandes / Garnitures : ${selectedViandes.map(v => `${v.name} (+${v.price} DA)`).join(', ')}\n`;
-        if (selectedSupplements.length > 0) message += `🧀 Suppléments : ${selectedSupplements.map(s => `${s.name} (+${s.price} DA)`).join(', ')}\n`;
-        if (selectedSauces.length > 0) message += `成分 Sauces : ${selectedSauces.map(s => s.name).join(', ')}\n`;
+        if (selectedViandes.length > 0) {
+            message += `\n🥩 *Viandes en extra :*\n`;
+            selectedViandes.forEach(v => {
+                message += `  • ${v.name} (+${v.price} DA)\n`;
+            });
+        }
 
-        message += `\n💰 PRIX TOTAL : ${calculateTotal()} DA\n`;
-        message += `Merci de valider ma commande !`;
+        if (selectedSupplements.length > 0) {
+            message += `\n🧀 *Suppléments & Fromages :*\n`;
+            selectedSupplements.forEach(s => {
+                message += `  • ${s.name} (+${s.price} DA)\n`;
+            });
+        }
+
+        if (selectedSauces.length > 0) {
+            message += `\n🥫 *Sauces :* ${selectedSauces.map(s => s.name.replace('Sauce ', '')).join(', ')}\n`;
+        }
+
+        if (specialNote.trim()) {
+            message += `\n📝 *Instructions spéciales :* ${specialNote.trim()}\n`;
+        }
+
+        message += `\n━━━━━━━━━━━━━━━\n`;
+        message += `💵 *PRIX TOTAL : ${calculateTotal()} DA*\n`;
+        message += `━━━━━━━━━━━━━━━\n\n`;
+        message += `Merci de valider et préparer ma commande !`;
 
         const whatsappNumber = whatsapp || process.env.NEXT_PUBLIC_WHATSAPP || '213600000000';
         window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
     };
 
     const steps = [
-        { id: 1, title: 'Base', hasData: bases.length > 0 },
-        { id: 2, title: 'Viandes', hasData: viandes.length > 0 },
-        { id: 3, title: 'Suppléments', hasData: supplements.length > 0 },
-        { id: 4, title: 'Sauces', hasData: sauces.length > 0 },
-        { id: 5, title: 'Récapitulatif', hasData: true }
-    ].filter(s => s.hasData);
-
-    const actualStepIndex = steps.findIndex(s => s.id === currentStep);
-    const isLastStep = actualStepIndex === steps.length - 1;
+        { id: 1, title: '1. Plat', subtitle: 'Choisir le plat', icon: '🍽️' },
+        { id: 2, title: '2. Viandes', subtitle: 'Extras viandes', icon: '🥩' },
+        { id: 3, title: '3. Suppléments', subtitle: 'Fromages & extras', icon: '🧀' },
+        { id: 4, title: '4. Sauces', subtitle: 'Sauces au choix', icon: '🥫' },
+        { id: 5, title: '5. Récapitulatif', subtitle: 'Valider commande', icon: '📋' }
+    ];
 
     const goNext = () => {
-        if (!isLastStep) setCurrentStep(steps[actualStepIndex + 1].id);
+        if (currentStep === 1 && !selectedDish) {
+            toast.error('Veuillez d\'abord choisir un plat dans la liste');
+            return;
+        }
+        if (currentStep < 5) setCurrentStep(prev => prev + 1);
     };
 
     const goPrev = () => {
-        if (actualStepIndex > 0) setCurrentStep(steps[actualStepIndex - 1].id);
+        if (currentStep > 1) setCurrentStep(prev => prev - 1);
     };
 
     return (
         <main className="min-h-screen bg-gray-50 flex flex-col">
             <Navbar />
-            
+
             {/* Header Banner */}
-            <section className="bg-dark pt-24 pb-8 px-4 text-center text-white">
-                <div className="max-w-4xl mx-auto">
-                    <span className="text-secondary font-semibold text-xs uppercase tracking-widest bg-white/10 px-3 py-1 rounded-full">
-                        👨‍🍳 Customizer 3000
+            <section className="bg-gradient-to-br from-dark via-gray-900 to-dark pt-24 pb-10 px-4 text-center text-white relative overflow-hidden">
+                <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#DE2824_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                <div className="max-w-4xl mx-auto relative z-10">
+                    <span className="text-yellow-400 font-bold text-xs uppercase tracking-widest bg-yellow-400/10 border border-yellow-400/20 px-4 py-1.5 rounded-full inline-flex items-center gap-2 mb-3">
+                        👨‍🍳 Atelier Personnalisation
                     </span>
-                    <h1 className="text-3xl md:text-5xl font-black mt-4 font-heading">
-                        Composez votre <span className="text-primary">Plat de Rêve</span>
+                    <h1 className="text-3xl md:text-5xl font-black font-heading mt-2">
+                        Composez votre <span className="text-yellow-400">Plat Idéal</span>
                     </h1>
+                    <p className="text-gray-300 text-sm md:text-base mt-2 max-w-xl mx-auto">
+                        Choisissez votre plat préféré dans notre menu, puis personnalisez-le avec vos suppléments, viandes et sauces préférées !
+                    </p>
                 </div>
             </section>
 
             {loading ? (
                 <div className="text-center py-24 flex-1 flex flex-col items-center justify-center">
-                    <div className="text-6xl animate-bounce mb-4">🍕</div>
-                    <p className="text-gray-500 text-lg">Chargement de l'atelier...</p>
+                    <div className="text-6xl animate-bounce mb-4">🍔</div>
+                    <p className="text-gray-500 text-lg font-medium">Préparation des ingrédients et du menu...</p>
                 </div>
             ) : (
-                <section className="py-8 px-4 max-w-6xl mx-auto w-full flex-1 flex flex-col">
+                <section className="py-8 px-4 max-w-7xl mx-auto w-full flex-1 flex flex-col">
                     
-                    {/* Category Tabs */}
-                    <div className="flex overflow-x-auto gap-3 pb-4 mb-6 scrollbar-hide snap-x justify-center">
-                        {[
-                            { id: 'sandwich', name: 'Sandwich', icon: '🥪' },
-                            { id: 'pizza', name: 'Pizza', icon: '🍕' },
-                            { id: 'burger', name: 'Burger', icon: '🍔' },
-                            { id: 'crepe', name: 'Crêpe', icon: '🥞' },
-                            { id: 'tacos', name: 'Tacos', icon: '🌮' }
-                        ].map(cat => (
-                            <button
-                                key={cat.id}
-                                onClick={() => setSelectedCategory(cat.id as any)}
-                                className={`snap-center shrink-0 flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-all ${
-                                    selectedCategory === cat.id 
-                                        ? 'bg-primary text-white shadow-lg shadow-primary/30' 
-                                        : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'
-                                }`}
-                            >
-                                <span className="text-xl">{cat.icon}</span>
-                                {cat.name}
-                            </button>
-                        ))}
+                    {/* Stepper Navigation Bar */}
+                    <div className="mb-8">
+                        <div className="flex overflow-x-auto gap-2 sm:gap-4 pb-2 scrollbar-hide justify-start md:justify-center">
+                            {steps.map((step) => {
+                                const isActive = currentStep === step.id;
+                                const isCompleted = currentStep > step.id;
+                                const isClickable = step.id === 1 || selectedDish !== null;
+
+                                return (
+                                    <button
+                                        key={step.id}
+                                        onClick={() => {
+                                            if (isClickable) setCurrentStep(step.id);
+                                            else toast.error('Veuillez d\'abord choisir un plat');
+                                        }}
+                                        className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl transition-all shrink-0 text-left border ${
+                                            isActive
+                                                ? 'bg-primary text-white border-primary shadow-lg shadow-primary/30 scale-105'
+                                                : isCompleted
+                                                ? 'bg-white text-gray-700 border-green-300 hover:border-green-400 shadow-sm'
+                                                : 'bg-white/60 text-gray-400 border-gray-200 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                                            isActive
+                                                ? 'bg-white text-primary'
+                                                : isCompleted
+                                                ? 'bg-green-500 text-white'
+                                                : 'bg-gray-100 text-gray-400'
+                                        }`}>
+                                            {isCompleted ? <FaCheck /> : step.icon}
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-bold leading-tight">{step.title}</span>
+                                            <span className={`text-[10px] hidden sm:block ${isActive ? 'text-white/80' : 'text-gray-400'}`}>
+                                                {step.subtitle}
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
 
+                    {/* Main Layout: Summary Panel (Sticky Left) + Interactive Steps (Right) */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start flex-1">
                         
-                        {/* LEFT COLUMN: Summary & Live Price (Sticky) */}
-                        <div className="lg:col-span-5 bg-white rounded-3xl p-6 shadow-xl border border-gray-100 flex flex-col sticky top-24 z-10 space-y-4">
-                            <div className="flex justify-between items-center">
+                        {/* LEFT COLUMN: Sticky Live Summary */}
+                        <div className="lg:col-span-4 bg-white rounded-3xl p-6 shadow-xl border border-gray-100 flex flex-col sticky top-24 z-10 space-y-4">
+                            <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                                 <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                                    <span className="text-2xl">
-                                        {selectedCategory === 'sandwich' && '🥪'}
-                                        {selectedCategory === 'pizza' && '🍕'}
-                                        {selectedCategory === 'burger' && '🍔'}
-                                        {selectedCategory === 'crepe' && '🥞'}
-                                        {selectedCategory === 'tacos' && '🌮'}
-                                    </span> 
-                                    Votre Composition
+                                    <FaUtensils className="text-primary" />
+                                    Votre Plat Personnalisé
                                 </h3>
-                                <button 
-                                    onClick={() => {
-                                        setSelectedViandes([]); setSelectedSupplements([]); setSelectedSauces([]);
-                                        setCurrentStep(1);
-                                        toast.success('Réinitialisé');
-                                    }}
-                                    className="text-gray-400 hover:text-red-500 transition-colors text-xs flex items-center gap-1 bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-100"
+                                <button
+                                    onClick={resetAll}
+                                    className="text-gray-400 hover:text-red-500 transition-colors text-xs flex items-center gap-1 bg-gray-50 hover:bg-red-50 px-2.5 py-1.5 rounded-lg border border-gray-100"
+                                    title="Réinitialiser tout"
                                 >
                                     <FaUndoAlt /> Réinitialiser
                                 </button>
                             </div>
 
-                            {/* Selections summary card */}
-                            <div className="bg-gradient-to-br from-dark to-gray-900 rounded-2xl p-5 text-white shadow-inner space-y-3">
-                                <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                                    <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">Prix de départ ({selectedCategory})</span>
-                                    <span className="font-bold text-yellow-400 text-sm">{categoryBasePrices[selectedCategory] || 0} DA</span>
-                                </div>
+                            {/* Summary Card */}
+                            <div className="bg-gradient-to-br from-dark to-gray-900 rounded-2xl p-5 text-white shadow-inner space-y-3.5">
+                                {selectedDish ? (
+                                    <div>
+                                        <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+                                            {getDishThumbnail(selectedDish.image) ? (
+                                                <img
+                                                    src={getDishThumbnail(selectedDish.image)!}
+                                                    alt={selectedDish.name}
+                                                    className="w-14 h-14 rounded-xl object-cover border border-white/20 shadow-md shrink-0"
+                                                />
+                                            ) : (
+                                                <span className="text-3xl bg-white/10 w-14 h-14 rounded-xl flex items-center justify-center shrink-0">
+                                                    {selectedDish.category_icon || '🍽️'}
+                                                </span>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <span className="text-[10px] uppercase font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full">
+                                                    Plat de base
+                                                </span>
+                                                <h4 className="font-bold text-sm text-white truncate mt-0.5">
+                                                    {selectedDish.name}
+                                                </h4>
+                                                <p className="text-xs text-primary font-bold">
+                                                    {selectedDish.price} DA
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => setCurrentStep(1)}
+                                                className="text-gray-400 hover:text-white text-xs bg-white/10 hover:bg-white/20 p-2 rounded-lg transition-colors shrink-0"
+                                                title="Changer de plat"
+                                            >
+                                                <FaEdit />
+                                            </button>
+                                        </div>
 
-                                <div className="space-y-2.5">
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-gray-400">🥖 Base / Pain:</span>
-                                        <span className="font-semibold text-right max-w-[200px] truncate">
-                                            {selectedBase ? `${selectedBase.name}${selectedBase.price > 0 ? ` (+${selectedBase.price} DA)` : ''}` : 'Aucune'}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-gray-400">🥩 Viandes:</span>
-                                        <span className="font-semibold text-right max-w-[200px] truncate">
-                                            {selectedViandes.length > 0 ? selectedViandes.map(v => v.name).join(', ') : 'Aucune'}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-gray-400">🧀 Suppléments:</span>
-                                        <span className="font-semibold text-right max-w-[200px] truncate">
-                                            {selectedSupplements.length > 0 ? selectedSupplements.map(s => s.name).join(', ') : 'Aucun'}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-gray-400">🥫 Sauces:</span>
-                                        <span className="font-semibold text-right max-w-[200px] truncate">
-                                            {selectedSauces.length > 0 ? selectedSauces.map(s => s.name).join(', ') : 'Aucune'}
-                                        </span>
-                                    </div>
-                                </div>
+                                        {/* Added Extras Details */}
+                                        <div className="space-y-2 pt-3 text-xs">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-400">🥩 Viandes extra ({selectedViandes.length}):</span>
+                                                <span className="font-semibold text-right max-w-[170px] truncate text-gray-200">
+                                                    {selectedViandes.length > 0
+                                                        ? selectedViandes.map(v => v.name).join(', ')
+                                                        : 'Aucune'}
+                                                </span>
+                                            </div>
 
-                                <div className="pt-3 border-t border-white/10 flex justify-between items-end">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-400">🧀 Suppléments ({selectedSupplements.length}):</span>
+                                                <span className="font-semibold text-right max-w-[170px] truncate text-gray-200">
+                                                    {selectedSupplements.length > 0
+                                                        ? selectedSupplements.map(s => s.name).join(', ')
+                                                        : 'Aucun'}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-400">🥫 Sauces ({selectedSauces.length}/3):</span>
+                                                <span className="font-semibold text-right max-w-[170px] truncate text-gray-200">
+                                                    {selectedSauces.length > 0
+                                                        ? selectedSauces.map(s => s.name.replace('Sauce ', '')).join(', ')
+                                                        : 'Aucune'}
+                                                </span>
+                                            </div>
+
+                                            {specialNote && (
+                                                <div className="flex justify-between pt-1 border-t border-white/5">
+                                                    <span className="text-gray-400">📝 Note:</span>
+                                                    <span className="italic text-yellow-300 max-w-[170px] truncate">
+                                                        {specialNote}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6">
+                                        <div className="text-4xl mb-2">🍽️</div>
+                                        <p className="text-sm font-semibold text-gray-300">Aucun plat sélectionné</p>
+                                        <p className="text-xs text-gray-400 mt-1">Choisissez un plat dans l'Étape 1 pour commencer.</p>
+                                    </div>
+                                )}
+
+                                {/* Total Price */}
+                                <div className="pt-3.5 border-t border-white/10 flex justify-between items-end">
                                     <div>
                                         <p className="text-[11px] text-gray-400">Total estimé</p>
-                                        <motion.p key={calculateTotal()} initial={{ scale: 0.9, color: '#DE2824' }} animate={{ scale: 1, color: '#FACC15' }} className="text-3xl font-black font-heading">
+                                        <motion.p
+                                            key={calculateTotal()}
+                                            initial={{ scale: 0.9, color: '#DE2824' }}
+                                            animate={{ scale: 1, color: '#FACC15' }}
+                                            className="text-3xl font-black font-heading"
+                                        >
                                             {calculateTotal()} DA
                                         </motion.p>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* RIGHT COLUMN: Wizard Steps */}
-                        <div className="lg:col-span-7 flex flex-col">
-                            
-                            {/* Stepper Progress */}
-                            <div className="flex items-center justify-between mb-8 px-2 relative">
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-gray-200 -z-10 rounded-full"></div>
-                                {steps.map((step, idx) => (
-                                    <div key={step.id} className="flex flex-col items-center">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${
-                                            currentStep === step.id ? 'bg-primary text-white scale-110 shadow-lg shadow-primary/40 ring-4 ring-white' : 
-                                            currentStep > step.id ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'
-                                        }`}>
-                                            {currentStep > step.id ? <FaCheck /> : idx + 1}
-                                        </div>
-                                        <span className={`text-[10px] uppercase font-bold mt-2 ${currentStep === step.id ? 'text-primary' : 'text-gray-400'}`}>
-                                            {step.title}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Step Content */}
-                            <div className="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-gray-100 flex-1 flex flex-col">
-                                <AnimatePresence mode="wait">
-                                    <motion.div
-                                        key={currentStep}
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="flex-1"
-                                    >
-                                        
-                                        {/* STEP 1: BASE */}
-                                        {currentStep === 1 && (
-                                            <div>
-                                                <h2 className="text-2xl font-bold font-heading mb-6">Choisissez votre Base</h2>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    {bases.map(b => (
-                                                        <button key={b.id} onClick={() => setSelectedBase(b)}
-                                                            className={`p-4 rounded-xl border-2 text-left transition-all ${
-                                                                selectedBase?.id === b.id ? 'border-primary bg-primary/5 ring-4 ring-primary/10' : 'border-gray-100 hover:border-gray-300'
-                                                            }`}
-                                                        >
-                                                            <div className="flex justify-between items-center mb-1">
-                                                                <span className="font-bold text-dark">{b.name}</span>
-                                                                <span className="font-bold text-primary text-sm">{b.price === 0 ? 'Inclus' : `${b.price} DA (Base)`}</span>
-                                                            </div>
-                                                            <p className="text-xs text-gray-400">Prix de base de départ</p>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* STEP 2: VIANDES */}
-                                        {currentStep === 2 && (
-                                            <div>
-                                                <h2 className="text-2xl font-bold font-heading mb-6">Protéines & Viandes</h2>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    {viandes.map(v => {
-                                                        const isSelected = selectedViandes.some(item => item.id === v.id);
-                                                        return (
-                                                            <button key={v.id} onClick={() => toggleViande(v)}
-                                                                className={`p-4 rounded-xl border-2 text-left transition-all ${
-                                                                    isSelected ? 'border-primary bg-primary/5 ring-4 ring-primary/10' : 'border-gray-100 hover:border-gray-300'
-                                                                }`}
-                                                            >
-                                                                <div className="flex justify-between items-center mb-1">
-                                                                    <span className="font-bold text-dark flex items-center gap-2">🥩 {v.name}</span>
-                                                                    <span className="font-bold text-primary text-sm">+{v.price} DA</span>
-                                                                </div>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* STEP 3: SUPPLEMENTS */}
-                                        {currentStep === 3 && (
-                                            <div>
-                                                <h2 className="text-2xl font-bold font-heading mb-6">Suppléments & Fromages</h2>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    {supplements.map(s => {
-                                                        const isSelected = selectedSupplements.some(item => item.id === s.id);
-                                                        return (
-                                                            <button key={s.id} onClick={() => toggleSupplement(s)}
-                                                                className={`p-4 rounded-xl border-2 text-left transition-all ${
-                                                                    isSelected ? 'border-primary bg-primary/5 ring-4 ring-primary/10' : 'border-gray-100 hover:border-gray-300'
-                                                                }`}
-                                                            >
-                                                                <div className="flex justify-between items-center mb-1">
-                                                                    <span className="font-bold text-dark flex items-center gap-2">🧀 {s.name}</span>
-                                                                    <span className="font-bold text-primary text-sm">+{s.price} DA</span>
-                                                                </div>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* STEP 4: SAUCES */}
-                                        {currentStep === 4 && (
-                                            <div>
-                                                <div className="mb-6">
-                                                    <h2 className="text-2xl font-bold font-heading">Sauces (3 max)</h2>
-                                                    <p className="text-sm text-gray-500">Ajoutez de la saveur à votre création ! (Gratuit)</p>
-                                                </div>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                                    {sauces.map(sa => {
-                                                        const isSelected = selectedSauces.some(item => item.id === sa.id);
-                                                        return (
-                                                            <button key={sa.id} onClick={() => toggleSauce(sa)}
-                                                                className={`p-3 rounded-xl border-2 text-center transition-all ${
-                                                                    isSelected ? 'border-primary bg-primary/5 ring-2 ring-primary/20 font-bold text-primary' : 'border-gray-100 hover:border-gray-300 text-gray-600'
-                                                                }`}
-                                                            >
-                                                                <span className="text-sm">{sa.name.replace('Sauce ', '')}</span>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* STEP 5: RECAP */}
-                                        {currentStep === 5 && (
-                                            <div className="flex flex-col items-center text-center">
-                                                <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-4xl mb-6">
-                                                    <FaCheck />
-                                                </div>
-                                                <h2 className="text-3xl font-black font-heading mb-2">Création Terminée !</h2>
-                                                <p className="text-gray-500 mb-8">Votre {selectedCategory} est magnifique. Prêt à le dévorer ?</p>
-                                                
-                                                <div className="w-full bg-gray-50 p-6 rounded-2xl text-left border border-gray-100 mb-8">
-                                                    <h4 className="font-bold mb-4 border-b pb-2">Récapitulatif</h4>
-                                                    <ul className="space-y-2 text-sm">
-                                                        <li className="flex justify-between"><span>Base: {selectedBase?.name}</span> <span>{selectedBase?.price} DA</span></li>
-                                                        {selectedViandes.map(v => <li key={v.id} className="flex justify-between text-gray-600"><span>- {v.name}</span> <span>{v.price} DA</span></li>)}
-                                                        {selectedSupplements.map(s => <li key={s.id} className="flex justify-between text-gray-600"><span>- {s.name}</span> <span>{s.price} DA</span></li>)}
-                                                        {selectedSauces.length > 0 && <li className="flex justify-between text-gray-600"><span>- Sauces: {selectedSauces.map(s => s.name.replace('Sauce ', '')).join(', ')}</span> <span>Gratuit</span></li>}
-                                                    </ul>
-                                                    <div className="mt-4 pt-4 border-t flex justify-between font-bold text-lg">
-                                                        <span>TOTAL</span>
-                                                        <span className="text-primary">{calculateTotal()} DA</span>
-                                                    </div>
-                                                </div>
-
-                                                <button onClick={sendWhatsAppOrder} className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all transform hover:scale-105 shadow-lg shadow-green-500/30">
-                                                    <FaWhatsapp className="text-2xl" />
-                                                    Commander sur WhatsApp
-                                                </button>
-                                            </div>
-                                        )}
-                                        
-                                    </motion.div>
-                                </AnimatePresence>
-
-                                {/* Navigation Buttons */}
-                                <div className="mt-8 pt-6 border-t border-gray-100 flex justify-between items-center mt-auto">
-                                    <button 
-                                        onClick={goPrev} 
-                                        disabled={actualStepIndex === 0}
-                                        className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all ${
-                                            actualStepIndex === 0 ? 'opacity-0 invisible' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
-                                    >
-                                        <FaArrowLeft /> Précédent
-                                    </button>
-                                    
-                                    {!isLastStep && (
-                                        <button 
-                                            onClick={goNext}
-                                            className="px-8 py-3 rounded-xl font-bold flex items-center gap-2 bg-dark text-white hover:bg-gray-800 transition-all shadow-lg"
+                                    {selectedDish && currentStep !== 5 && (
+                                        <button
+                                            onClick={() => setCurrentStep(5)}
+                                            className="bg-primary hover:bg-red-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5"
                                         >
-                                            Étape suivante <FaArrowRight />
+                                            Commander <FaArrowRight />
                                         </button>
                                     )}
                                 </div>
                             </div>
 
+                            {/* Quick Tip */}
+                            <div className="bg-yellow-50 border border-yellow-200/60 rounded-2xl p-3.5 text-xs text-yellow-800 flex items-start gap-2.5">
+                                <span className="text-base">💡</span>
+                                <p>
+                                    Vous pouvez ajouter plusieurs viandes et suppléments à votre plat pour le rendre encore plus gourmand !
+                                </p>
+                            </div>
                         </div>
+
+                        {/* RIGHT COLUMN: Interactive Step Content */}
+                        <div className="lg:col-span-8 flex flex-col">
+                            <div className="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-gray-100 flex-1 flex flex-col">
+                                <AnimatePresence mode="wait">
+                                    <motion.div
+                                        key={currentStep}
+                                        initial={{ opacity: 0, y: 15 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -15 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="flex-1 flex flex-col"
+                                    >
+
+                                        {/* ================= STEP 1: CHOOSE BASE DISH ================= */}
+                                        {currentStep === 1 && (
+                                            <div className="space-y-6">
+                                                <div>
+                                                    <h2 className="text-2xl md:text-3xl font-black font-heading text-dark">
+                                                        1. Choisissez votre Plat de Base 🍽️
+                                                    </h2>
+                                                    <p className="text-gray-500 text-sm mt-1">
+                                                        Sélectionnez le plat normal du menu que vous souhaitez personnaliser.
+                                                    </p>
+                                                </div>
+
+                                                {/* Search & Category Filter Pills */}
+                                                <div className="space-y-3">
+                                                    {/* Search input */}
+                                                    <div className="relative">
+                                                        <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Rechercher un plat (ex: Burger Cheese, Pizza Royale, Tacos...)"
+                                                            value={dishSearchQuery}
+                                                            onChange={(e) => setDishSearchQuery(e.target.value)}
+                                                            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                        />
+                                                        {dishSearchQuery && (
+                                                            <button
+                                                                onClick={() => setDishSearchQuery('')}
+                                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold"
+                                                            >
+                                                                Effacer
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Category Tabs */}
+                                                    <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
+                                                        <button
+                                                            onClick={() => setSelectedCatFilter(null)}
+                                                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                                                                selectedCatFilter === null
+                                                                    ? 'bg-dark text-white shadow-md'
+                                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                            }`}
+                                                        >
+                                                            🍽️ Tous les Plats ({menuItems.length})
+                                                        </button>
+                                                        {categories.map(cat => (
+                                                            <button
+                                                                key={cat.id}
+                                                                onClick={() => setSelectedCatFilter(cat.id)}
+                                                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+                                                                    selectedCatFilter === cat.id
+                                                                        ? 'bg-primary text-white shadow-md shadow-primary/30'
+                                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                                }`}
+                                                            >
+                                                                <span>{cat.icon}</span>
+                                                                <span>{cat.name}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Dishes Grid */}
+                                                {filteredDishes.length === 0 ? (
+                                                    <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                                        <span className="text-4xl mb-2 block">🔍</span>
+                                                        <h4 className="font-bold text-gray-700">Aucun plat trouvé</h4>
+                                                        <p className="text-xs text-gray-400 mt-1">Essayez un autre mot-clé ou changez de catégorie.</p>
+                                                        <button
+                                                            onClick={() => { setDishSearchQuery(''); setSelectedCatFilter(null); }}
+                                                            className="mt-3 text-xs text-primary font-bold hover:underline"
+                                                        >
+                                                            Réinitialiser la recherche
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[520px] overflow-y-auto pr-1">
+                                                        {filteredDishes.map((dish) => {
+                                                            const isSelected = selectedDish?.id === dish.id;
+                                                            const thumb = getDishThumbnail(dish.image);
+
+                                                            return (
+                                                                <div
+                                                                    key={dish.id}
+                                                                    onClick={() => handleSelectDish(dish)}
+                                                                    className={`group relative p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                                                                        isSelected
+                                                                            ? 'border-primary bg-primary/5 ring-4 ring-primary/10 shadow-lg'
+                                                                            : 'border-gray-100 bg-white hover:border-gray-300 hover:shadow-md'
+                                                                    }`}
+                                                                >
+                                                                    <div>
+                                                                        <div className="flex items-center gap-3 mb-3">
+                                                                            {thumb ? (
+                                                                                <img
+                                                                                    src={thumb}
+                                                                                    alt={dish.name}
+                                                                                    className="w-16 h-16 rounded-xl object-cover border border-gray-100 shadow-sm shrink-0 group-hover:scale-105 transition-transform"
+                                                                                />
+                                                                            ) : (
+                                                                                <span className="text-3xl bg-gray-50 w-16 h-16 rounded-xl flex items-center justify-center shrink-0 border border-gray-100">
+                                                                                    {dish.category_icon || '🍽️'}
+                                                                                </span>
+                                                                            )}
+                                                                            <div className="min-w-0 flex-1">
+                                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                    <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                                                                                        {dish.category_icon} {dish.category_name}
+                                                                                    </span>
+                                                                                    {dish.is_popular === 1 && (
+                                                                                        <span className="text-[10px] font-bold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+                                                                                            🔥 Top
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <h3 className="font-bold text-dark text-base mt-1 group-hover:text-primary transition-colors leading-tight">
+                                                                                    {dish.name}
+                                                                                </h3>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {dish.description && (
+                                                                            <p className="text-xs text-gray-500 line-clamp-2 mb-3">
+                                                                                {dish.description}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between mt-auto">
+                                                                        <span className="font-black text-primary text-base font-heading">
+                                                                            {dish.price} DA
+                                                                        </span>
+                                                                        <button
+                                                                            type="button"
+                                                                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+                                                                                isSelected
+                                                                                    ? 'bg-primary text-white'
+                                                                                    : 'bg-dark text-white group-hover:bg-primary'
+                                                                            }`}
+                                                                        >
+                                                                            {isSelected ? (
+                                                                                <>
+                                                                                    <FaCheck /> Sélectionné
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    Personnaliser ✨
+                                                                                </>
+                                                                            )}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* ================= STEP 2: VIANDES EN EXTRA ================= */}
+                                        {currentStep === 2 && (
+                                            <div className="space-y-6">
+                                                <div className="flex items-start justify-between">
+                                                    <div>
+                                                        <h2 className="text-2xl md:text-3xl font-black font-heading text-dark flex items-center gap-2">
+                                                            2. Viandes & Protéines en Extra 🥩
+                                                        </h2>
+                                                        <p className="text-gray-500 text-sm mt-1">
+                                                            Envie de plus de viande dans votre {selectedDish?.name || 'plat'} ? Ajoutez des garnitures supplémentaires ! (Optionnel)
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                {availableViandes.length === 0 ? (
+                                                    <div className="text-center py-10 bg-gray-50 rounded-2xl">
+                                                        <p className="text-gray-500 text-sm">Aucune viande supplémentaire disponible pour cette catégorie.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        {availableViandes.map(v => {
+                                                            const isSelected = selectedViandes.some(item => item.id === v.id);
+                                                            return (
+                                                                <button
+                                                                    key={v.id}
+                                                                    type="button"
+                                                                    onClick={() => toggleViande(v)}
+                                                                    className={`p-4 rounded-2xl border-2 text-left transition-all flex items-center justify-between ${
+                                                                        isSelected
+                                                                            ? 'border-primary bg-primary/5 ring-4 ring-primary/10 shadow-md'
+                                                                            : 'border-gray-100 bg-white hover:border-gray-300'
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center border text-xs transition-colors ${
+                                                                            isSelected
+                                                                                ? 'bg-primary border-primary text-white'
+                                                                                : 'border-gray-300 bg-gray-50 text-transparent'
+                                                                        }`}>
+                                                                            <FaCheck />
+                                                                        </div>
+                                                                        <div>
+                                                                            <span className="font-bold text-dark text-sm block">🥩 {v.name}</span>
+                                                                            <span className="text-[11px] text-gray-400">Portion extra</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className="font-bold text-primary text-sm bg-primary/10 px-2.5 py-1 rounded-lg">
+                                                                        +{v.price} DA
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* ================= STEP 3: SUPPLEMENTS & FROMAGES ================= */}
+                                        {currentStep === 3 && (
+                                            <div className="space-y-6">
+                                                <div>
+                                                    <h2 className="text-2xl md:text-3xl font-black font-heading text-dark flex items-center gap-2">
+                                                        3. Suppléments & Fromages 🧀
+                                                    </h2>
+                                                    <p className="text-gray-500 text-sm mt-1">
+                                                        Ajoutez du fondant, du croustillant ou du fromage supplémentaire ! (Optionnel)
+                                                    </p>
+                                                </div>
+
+                                                {availableSupplements.length === 0 ? (
+                                                    <div className="text-center py-10 bg-gray-50 rounded-2xl">
+                                                        <p className="text-gray-500 text-sm">Aucun supplément disponible pour cette catégorie.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        {availableSupplements.map(s => {
+                                                            const isSelected = selectedSupplements.some(item => item.id === s.id);
+                                                            return (
+                                                                <button
+                                                                    key={s.id}
+                                                                    type="button"
+                                                                    onClick={() => toggleSupplement(s)}
+                                                                    className={`p-4 rounded-2xl border-2 text-left transition-all flex items-center justify-between ${
+                                                                        isSelected
+                                                                            ? 'border-primary bg-primary/5 ring-4 ring-primary/10 shadow-md'
+                                                                            : 'border-gray-100 bg-white hover:border-gray-300'
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center border text-xs transition-colors ${
+                                                                            isSelected
+                                                                                ? 'bg-primary border-primary text-white'
+                                                                                : 'border-gray-300 bg-gray-50 text-transparent'
+                                                                        }`}>
+                                                                            <FaCheck />
+                                                                        </div>
+                                                                        <div>
+                                                                            <span className="font-bold text-dark text-sm block">🧀 {s.name}</span>
+                                                                            <span className="text-[11px] text-gray-400">Supplément gourmand</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className="font-bold text-primary text-sm bg-primary/10 px-2.5 py-1 rounded-lg">
+                                                                        +{s.price} DA
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* ================= STEP 4: SAUCES ================= */}
+                                        {currentStep === 4 && (
+                                            <div className="space-y-6">
+                                                <div>
+                                                    <div className="flex items-center justify-between">
+                                                        <h2 className="text-2xl md:text-3xl font-black font-heading text-dark flex items-center gap-2">
+                                                            4. Sauces (3 max) 🥫
+                                                        </h2>
+                                                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                                                            selectedSauces.length === 3
+                                                                ? 'bg-orange-100 text-orange-600'
+                                                                : 'bg-green-100 text-green-700'
+                                                        }`}>
+                                                            {selectedSauces.length} / 3 sélectionnées
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-gray-500 text-sm mt-1">
+                                                        Choisissez jusqu'à 3 sauces gratuites pour accompagner votre plat.
+                                                    </p>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                                    {availableSauces.map(sa => {
+                                                        const isSelected = selectedSauces.some(item => item.id === sa.id);
+                                                        return (
+                                                            <button
+                                                                key={sa.id}
+                                                                type="button"
+                                                                onClick={() => toggleSauce(sa)}
+                                                                className={`p-3.5 rounded-2xl border-2 text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                                                                    isSelected
+                                                                        ? 'border-primary bg-primary text-white font-bold shadow-md shadow-primary/20 scale-105'
+                                                                        : 'border-gray-100 bg-white hover:border-gray-300 text-gray-700'
+                                                                }`}
+                                                            >
+                                                                <span className="text-lg">🥫</span>
+                                                                <span className="text-xs font-semibold">{sa.name.replace('Sauce ', '')}</span>
+                                                                <span className={`text-[10px] ${isSelected ? 'text-white/80' : 'text-green-600 font-bold'}`}>
+                                                                    Gratuit
+                                                                </span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* ================= STEP 5: RECAPITULATIF & COMMANDE ================= */}
+                                        {currentStep === 5 && (
+                                            <div className="space-y-6">
+                                                <div className="text-center">
+                                                    <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner">
+                                                        <FaCheck />
+                                                    </div>
+                                                    <h2 className="text-2xl md:text-3xl font-black font-heading text-dark">
+                                                        Votre Plat est Prêt ! 🎉
+                                                    </h2>
+                                                    <p className="text-gray-500 text-sm mt-1">
+                                                        Vérifiez les détails ci-dessous avant d'envoyer votre commande sur WhatsApp.
+                                                    </p>
+                                                </div>
+
+                                                {/* Receipt Card */}
+                                                <div className="bg-gray-50 border border-gray-200 rounded-3xl p-6 shadow-sm space-y-4">
+                                                    <h4 className="font-bold text-gray-800 border-b border-gray-200 pb-3 flex items-center justify-between">
+                                                        <span>📋 Récapitulatif de la Commande</span>
+                                                        <span className="text-xs font-normal text-gray-500">{siteName}</span>
+                                                    </h4>
+
+                                                    {/* Base dish line */}
+                                                    <div className="flex items-center justify-between text-sm py-1 border-b border-gray-200/60">
+                                                        <div className="flex items-center gap-2 font-bold text-dark">
+                                                            <span>🍽️ {selectedDish?.name}</span>
+                                                            <span className="text-[10px] text-gray-400 font-normal">({selectedDish?.category_name})</span>
+                                                        </div>
+                                                        <span className="font-bold text-dark">{selectedDish?.price} DA</span>
+                                                    </div>
+
+                                                    {/* Extra meats */}
+                                                    {selectedViandes.map(v => (
+                                                        <div key={v.id} className="flex justify-between text-xs text-gray-600 pl-4">
+                                                            <span>🥩 Extra {v.name}</span>
+                                                            <span className="font-semibold text-primary">+{v.price} DA</span>
+                                                        </div>
+                                                    ))}
+
+                                                    {/* Supplements */}
+                                                    {selectedSupplements.map(s => (
+                                                        <div key={s.id} className="flex justify-between text-xs text-gray-600 pl-4">
+                                                            <span>🧀 Supplément {s.name}</span>
+                                                            <span className="font-semibold text-primary">+{s.price} DA</span>
+                                                        </div>
+                                                    ))}
+
+                                                    {/* Sauces */}
+                                                    {selectedSauces.length > 0 && (
+                                                        <div className="flex justify-between text-xs text-gray-600 pl-4">
+                                                            <span>🥫 Sauces : {selectedSauces.map(s => s.name.replace('Sauce ', '')).join(', ')}</span>
+                                                            <span className="font-semibold text-green-600">Inclus (Gratuit)</span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Special Instructions Input */}
+                                                    <div className="pt-3 border-t border-gray-200">
+                                                        <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                                                            <FaStickyNote className="text-yellow-500" />
+                                                            Notes / Instructions spéciales (Optionnel) :
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Ex: Sans oignons, bien cuit, sauce à part..."
+                                                            value={specialNote}
+                                                            onChange={(e) => setSpecialNote(e.target.value)}
+                                                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                                        />
+                                                    </div>
+
+                                                    {/* Total Line */}
+                                                    <div className="pt-4 border-t-2 border-gray-300 flex justify-between items-center text-lg font-black font-heading text-dark">
+                                                        <span>PRIX TOTAL ESTIMÉ</span>
+                                                        <span className="text-2xl text-primary">{calculateTotal()} DA</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* WhatsApp Order Button */}
+                                                <button
+                                                    onClick={sendWhatsAppOrder}
+                                                    className="w-full bg-green-500 hover:bg-green-600 text-white py-4 px-6 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] shadow-xl shadow-green-500/30"
+                                                >
+                                                    <FaWhatsapp className="text-3xl" />
+                                                    <span>Commander sur WhatsApp ({calculateTotal()} DA)</span>
+                                                </button>
+                                            </div>
+                                        )}
+
+                                    </motion.div>
+                                </AnimatePresence>
+
+                                {/* Navigation Prev / Next Buttons */}
+                                <div className="mt-8 pt-6 border-t border-gray-100 flex justify-between items-center mt-auto">
+                                    <button
+                                        onClick={goPrev}
+                                        disabled={currentStep === 1}
+                                        className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all ${
+                                            currentStep === 1
+                                                ? 'opacity-0 invisible'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        <FaArrowLeft /> Précédent
+                                    </button>
+
+                                    {currentStep < 5 && (
+                                        <button
+                                            onClick={goNext}
+                                            className="px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 bg-dark text-white hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl"
+                                        >
+                                            {currentStep === 1 ? 'Continuer la personnalisation' : 'Étape suivante'}{' '}
+                                            <FaArrowRight />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </section>
             )}
-            
+
             <Footer />
         </main>
+    );
+}
+
+export default function ComposerPage() {
+    return (
+        <Suspense fallback={
+            <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="text-5xl animate-bounce mb-3">👨‍🍳</div>
+                    <p className="text-gray-500 font-medium">Chargement de l'atelier...</p>
+                </div>
+            </main>
+        }>
+            <ComposerContent />
+        </Suspense>
     );
 }

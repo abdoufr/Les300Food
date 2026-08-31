@@ -2,7 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaPhoneAlt } from 'react-icons/fa';
+import Link from 'next/link';
+import { FaPhoneAlt, FaMagic } from 'react-icons/fa';
 
 interface MenuItem {
     id: number;
@@ -134,23 +135,34 @@ export default function MenuCard({ item, index }: MenuCardProps) {
                     {item.description}
                 </p>
 
-                <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                <div className="flex items-center justify-between gap-2 flex-wrap pt-2 border-t border-gray-100">
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full font-medium">
                         {item.category_icon} {item.category_name}
                     </span>
 
                     {item.is_available ? (
-                        <button
-                            onClick={callToOrder}
-                            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 
-                         text-white px-4 py-2 rounded-full text-sm font-medium 
-                         transition-all duration-300 hover:shadow-lg hover:shadow-green-500/30"
-                        >
-                            <FaPhoneAlt />
-                            Appeler
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                            <Link
+                                href={`/composer?dishId=${item.id}`}
+                                className="flex items-center gap-1 bg-yellow-400 hover:bg-yellow-500 
+                             text-dark font-bold px-3 py-1.5 rounded-full text-xs 
+                             transition-all duration-300 hover:scale-105 shadow-sm"
+                                title="Personnaliser et ajouter des suppléments"
+                            >
+                                <span>👨‍🍳</span> Composer
+                            </Link>
+                            <button
+                                onClick={callToOrder}
+                                className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 
+                             text-white px-3 py-1.5 rounded-full text-xs font-medium 
+                             transition-all duration-300 hover:shadow-md hover:shadow-green-500/30"
+                            >
+                                <FaPhoneAlt />
+                                Appeler
+                            </button>
+                        </div>
                     ) : (
-                        <span className="text-sm text-gray-400 italic">Non disponible</span>
+                        <span className="text-xs text-gray-400 italic">Non disponible</span>
                     )}
                 </div>
             </div>

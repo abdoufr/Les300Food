@@ -62,16 +62,25 @@ export default async function HomePage() {
                                 <div className="p-4">
                                     <h3 className="font-bold text-dark font-heading">{item.name}</h3>
                                     <p className="text-sm text-gray-500 mt-1 line-clamp-1">{item.description}</p>
-                                    <div className="flex justify-between items-center mt-3">
-                                        <span className="text-primary font-bold text-lg">{item.price} DA</span>
-                                        <a
-                                            href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(`Je voudrais commander: ${item.name} (${item.price} DA)`)}`}
-                                            target="_blank"
-                                            className="bg-green-500 text-white px-3 py-1.5 rounded-full text-xs font-medium 
-                                 hover:bg-green-600 transition-colors"
-                                        >
-                                            Commander
-                                        </a>
+                                    <div className="flex justify-between items-center mt-3 gap-1.5 flex-wrap">
+                                        <span className="text-primary font-bold text-base">{item.price} DA</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <Link
+                                                href={`/composer?dishId=${item.id}`}
+                                                className="bg-yellow-400 hover:bg-yellow-500 text-dark font-bold px-2.5 py-1.5 rounded-full text-xs transition-transform hover:scale-105"
+                                                title="Personnaliser ce plat"
+                                            >
+                                                👨‍🍳
+                                            </Link>
+                                            <a
+                                                href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(`Je voudrais commander: ${item.name} (${item.price} DA)`)}`}
+                                                target="_blank"
+                                                className="bg-green-500 text-white px-3 py-1.5 rounded-full text-xs font-medium 
+                                     hover:bg-green-600 transition-colors"
+                                            >
+                                                Commander
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

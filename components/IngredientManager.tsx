@@ -36,12 +36,13 @@ export default function IngredientManager({ token }: IngredientManagerProps) {
     });
 
     const categories = [
-        { id: 'sandwich', name: 'Sandwich 🥪' },
         { id: 'pizza', name: 'Pizza 🍕' },
-        { id: 'burger', name: 'Burger/Cheese 🍔' },
-        { id: 'crepe', name: 'Crêpe 🥞' },
+        { id: 'burger', name: 'Burger / Cheese 🍔' },
+        { id: 'sandwich', name: 'Sandwich 🥪' },
+        { id: 'plat', name: 'Plats / Assiettes 🍽️' },
         { id: 'tacos', name: 'Tacos 🌮' },
-        { id: 'supplement', name: 'Suppléments / Extras 🧀' }
+        { id: 'crepe', name: 'Crêpe 🥞' },
+        { id: 'all', name: 'Général / Tous les plats 🧀' }
     ];
 
     const subcategories = [

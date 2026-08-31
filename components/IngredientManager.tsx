@@ -40,7 +40,8 @@ export default function IngredientManager({ token }: IngredientManagerProps) {
         { id: 'pizza', name: 'Pizza 🍕' },
         { id: 'burger', name: 'Burger/Cheese 🍔' },
         { id: 'crepe', name: 'Crêpe 🥞' },
-        { id: 'tacos', name: 'Tacos 🌮' }
+        { id: 'tacos', name: 'Tacos 🌮' },
+        { id: 'supplement', name: 'Suppléments / Extras 🧀' }
     ];
 
     const subcategories = [

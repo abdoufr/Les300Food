@@ -141,37 +141,121 @@ function ComposerContent() {
         return 'sandwich';
     }, [selectedDish]);
 
-    // Filter available ingredients for the selected dish category (or fallback to all)
-    const categoryIngredients = useMemo(() => {
-        const matching = ingredients.filter(i => i.category === ingredientCategoryKey);
-        return matching.length > 0 ? matching : ingredients;
+    // Base dishes and categories (exclude pure supplements and sauces from base dishes)
+    const baseCategories = useMemo(() => {
+        return categories.filter(cat => {
+            const catName = (cat.name || '').toLowerCase();
+            return !catName.includes('suppl') && !catName.includes('extra') && !catName.includes('sauce');
+        });
+    }, [categories]);
+
+    const baseDishes = useMemo(() => {
+        return menuItems.filter(item => {
+            const cat = (item.category_name || '').toLowerCase();
+            return !cat.includes('suppl') && !cat.includes('extra') && !cat.includes('sauce');
+        });
+    }, [menuItems]);
+
+    // 1. Supplements from menu items (category "Suppléments" / "Supplements" / "Extras")
+    const menuSupplements = useMemo(() => {
+        return menuItems.filter(item => {
+            const cat = (item.category_name || '').toLowerCase();
+            return cat.includes('suppl') || cat.includes('extra') || cat.includes('garnitur') || cat.includes('fromage');
+        }).map(item => ({
+            id: -(item.id),
+            name: item.name,
+            price: item.price,
+            category: 'supplement',
+            subcategory: 'supplement',
+            is_available: item.is_available,
+            image: item.image,
+            description: item.description
+        }));
+    }, [menuItems]);
+
+    // 2. Supplements from ingredients table
+    const ingredientSupplements = useMemo(() => {
+        const matching = ingredients.filter(i =>
+            (i.subcategory === 'supplement' || i.category === 'supplement') &&
+            (i.category === ingredientCategoryKey || i.category === 'supplement' || i.category === 'all' || i.category === 'general')
+        );
+        if (matching.length > 0) return matching;
+        return ingredients.filter(i => i.subcategory === 'supplement' || i.category === 'supplement');
     }, [ingredients, ingredientCategoryKey]);
 
-    const availableViandes = useMemo(() => {
-        const catViandes = categoryIngredients.filter(i => i.subcategory === 'viande');
-        if (catViandes.length > 0) return catViandes;
-        return ingredients.filter(i => i.subcategory === 'viande');
-    }, [categoryIngredients, ingredients]);
-
+    // Combined unique supplements
     const availableSupplements = useMemo(() => {
-        const catSupps = categoryIngredients.filter(i => i.subcategory === 'supplement');
-        if (catSupps.length > 0) return catSupps;
-        return ingredients.filter(i => i.subcategory === 'supplement');
-    }, [categoryIngredients, ingredients]);
-
-    const availableSauces = useMemo(() => {
-        // Sauces are generally universal; get unique by name
-        const allSauces = ingredients.filter(i => i.subcategory === 'sauce');
-        const uniqueMap = new Map<string, Ingredient>();
-        allSauces.forEach(s => {
-            if (!uniqueMap.has(s.name)) uniqueMap.set(s.name, s);
+        const combined = [...menuSupplements, ...ingredientSupplements];
+        const uniqueMap = new Map<string, any>();
+        combined.forEach(s => {
+            const key = s.name.trim().toLowerCase();
+            if (!uniqueMap.has(key)) {
+                uniqueMap.set(key, s);
+            }
         });
         return Array.from(uniqueMap.values());
-    }, [ingredients]);
+    }, [menuSupplements, ingredientSupplements]);
+
+    // Viandes en extra from menu & ingredients
+    const menuViandes = useMemo(() => {
+        return menuItems.filter(item => {
+            const cat = (item.category_name || '').toLowerCase();
+            return cat.includes('viande') || cat.includes('protéine');
+        }).map(item => ({
+            id: -(item.id + 10000),
+            name: item.name,
+            price: item.price,
+            category: 'viande',
+            subcategory: 'viande',
+            is_available: item.is_available,
+            image: item.image,
+            description: item.description
+        }));
+    }, [menuItems]);
+
+    const availableViandes = useMemo(() => {
+        const catViandes = ingredients.filter(i => i.category === ingredientCategoryKey && i.subcategory === 'viande');
+        const fallbackViandes = catViandes.length > 0 ? catViandes : ingredients.filter(i => i.subcategory === 'viande');
+        const combined = [...menuViandes, ...fallbackViandes];
+        const uniqueMap = new Map<string, any>();
+        combined.forEach(v => {
+            const key = v.name.trim().toLowerCase();
+            if (!uniqueMap.has(key)) {
+                uniqueMap.set(key, v);
+            }
+        });
+        return Array.from(uniqueMap.values());
+    }, [ingredients, ingredientCategoryKey, menuViandes]);
+
+    // Sauces from menu & ingredients
+    const menuSauces = useMemo(() => {
+        return menuItems.filter(item => {
+            const cat = (item.category_name || '').toLowerCase();
+            return cat.includes('sauce');
+        }).map(item => ({
+            id: -(item.id + 20000),
+            name: item.name,
+            price: item.price,
+            category: 'sauce',
+            subcategory: 'sauce',
+            is_available: item.is_available
+        }));
+    }, [menuItems]);
+
+    const availableSauces = useMemo(() => {
+        const allSauces = ingredients.filter(i => i.subcategory === 'sauce');
+        const combined = [...menuSauces, ...allSauces];
+        const uniqueMap = new Map<string, any>();
+        combined.forEach(s => {
+            const key = s.name.trim().toLowerCase();
+            if (!uniqueMap.has(key)) uniqueMap.set(key, s);
+        });
+        return Array.from(uniqueMap.values());
+    }, [ingredients, menuSauces]);
 
     // Filtered menu dishes for Step 1
     const filteredDishes = useMemo(() => {
-        let list = [...menuItems];
+        let list = [...baseDishes];
         if (selectedCatFilter) {
             list = list.filter(item => item.category_id === selectedCatFilter);
         }
@@ -185,7 +269,7 @@ function ComposerContent() {
             );
         }
         return list;
-    }, [menuItems, selectedCatFilter, dishSearchQuery]);
+    }, [baseDishes, selectedCatFilter, dishSearchQuery]);
 
     // Calculate total price: Dish Base Price + Extra Viandes + Supplements
     const calculateTotal = useCallback(() => {
@@ -588,9 +672,9 @@ function ComposerContent() {
                                                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                                             }`}
                                                         >
-                                                            🍽️ Tous les Plats ({menuItems.length})
+                                                            🍽️ Tous les Plats ({baseDishes.length})
                                                         </button>
-                                                        {categories.map(cat => (
+                                                        {baseCategories.map(cat => (
                                                             <button
                                                                 key={cat.id}
                                                                 onClick={() => setSelectedCatFilter(cat.id)}
@@ -793,19 +877,32 @@ function ComposerContent() {
                                                                     }`}
                                                                 >
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center border text-xs transition-colors ${
+                                                                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center border text-xs transition-colors shrink-0 ${
                                                                             isSelected
                                                                                 ? 'bg-primary border-primary text-white'
                                                                                 : 'border-gray-300 bg-gray-50 text-transparent'
                                                                         }`}>
                                                                             <FaCheck />
                                                                         </div>
+                                                                        {s.image && getDishThumbnail(s.image) ? (
+                                                                            <img
+                                                                                src={getDishThumbnail(s.image)!}
+                                                                                alt={s.name}
+                                                                                className="w-11 h-11 rounded-xl object-cover border border-gray-100 shrink-0"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="w-11 h-11 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center text-xl shrink-0 border border-orange-100">
+                                                                                🧀
+                                                                            </div>
+                                                                        )}
                                                                         <div>
-                                                                            <span className="font-bold text-dark text-sm block">🧀 {s.name}</span>
-                                                                            <span className="text-[11px] text-gray-400">Supplément gourmand</span>
+                                                                            <span className="font-bold text-dark text-sm block">{s.name}</span>
+                                                                            <span className="text-[11px] text-gray-400">
+                                                                                {s.description || 'Supplément gourmand'}
+                                                                            </span>
                                                                         </div>
                                                                     </div>
-                                                                    <span className="font-bold text-primary text-sm bg-primary/10 px-2.5 py-1 rounded-lg">
+                                                                    <span className="font-bold text-primary text-sm bg-primary/10 px-2.5 py-1 rounded-lg shrink-0 ml-2">
                                                                         +{s.price} DA
                                                                     </span>
                                                                 </button>

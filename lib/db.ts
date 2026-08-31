@@ -111,8 +111,8 @@ async function initDB() {
     if ((cats.rows[0] as any).count === 0) {
         const categories = [
             ['Burgers', '🍔', 1], ['Pizzas', '🍕', 2], ['Tacos', '🌮', 3],
-            ['Sandwiches', '🥪', 4], ['Poulet', '🍗', 5], ['Salades', '🥗', 6],
-            ['Boissons', '🥤', 7], ['Desserts', '🍰', 8],
+            ['Sandwiches', '🥪', 4], ['Poulet', '🍗', 5], ['Suppléments', '🧀', 6],
+            ['Salades', '🥗', 7], ['Boissons', '🥤', 8], ['Desserts', '🍰', 9],
         ];
         for (const [name, icon, order] of categories) {
             await db.execute({
